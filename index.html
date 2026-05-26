@@ -27,15 +27,35 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--txt);min-he
 .nav-logo{display:flex;flex-direction:column;padding-right:12px;border-right:1px solid rgba(255,255,255,0.18);margin-right:8px;flex-shrink:0}
 .nav-logo-top{font-family:'Bebas Neue',sans-serif;font-size:16px;letter-spacing:2.5px;color:#fff;line-height:1}
 .nav-logo-sub{font-size:8px;letter-spacing:1.5px;color:rgba(255,255,255,0.5);text-transform:uppercase;margin-top:1px}
+/* Desktop links */
 .nav-links{display:flex;flex:1;overflow-x:auto;-ms-overflow-style:none;scrollbar-width:none}
 .nav-links::-webkit-scrollbar{display:none}
 .nb{background:none;border:none;color:rgba(255,255,255,0.65);font-family:'Inter',sans-serif;font-size:11px;font-weight:500;padding:0 9px;cursor:pointer;white-space:nowrap;height:var(--nav-h);border-bottom:2px solid transparent;transition:all .15s;letter-spacing:.2px}
 .nb:hover{color:#fff}
 .nb.active{color:#fff;border-bottom-color:rgba(255,255,255,0.6)}
+/* Enter scores CTA button in nav */
+.nav-enter-btn{background:rgba(255,255,255,0.18);border:1px solid rgba(255,255,255,0.35);color:#fff;font-family:'Inter',sans-serif;font-size:11px;font-weight:700;padding:6px 12px;border-radius:8px;cursor:pointer;white-space:nowrap;letter-spacing:.3px;flex-shrink:0;margin-right:8px;display:none}
+.nav-enter-btn:hover{background:rgba(255,255,255,0.28)}
+/* Hamburger */
+.nav-hamburger{display:none;background:none;border:none;color:#fff;font-size:22px;cursor:pointer;padding:4px 8px;margin-left:4px;flex-shrink:0;line-height:1}
+/* Mobile drawer */
+.nav-drawer{display:none;position:fixed;top:var(--nav-h);left:0;right:0;background:var(--g1);z-index:199;box-shadow:0 4px 20px rgba(0,0,0,0.3);flex-direction:column;padding:8px 0}
+.nav-drawer.open{display:flex}
+.nav-drawer .nb{height:44px;padding:0 20px;border-bottom:none;text-align:left;font-size:13px;width:100%;border-top:1px solid rgba(255,255,255,0.06)}
+.nav-drawer .nb:first-child{border-top:none}
+.nav-drawer .nb.active{background:rgba(255,255,255,0.08);color:#fff}
+.nav-drawer-enter{background:var(--g2);color:#fff;font-family:'Inter',sans-serif;font-size:13px;font-weight:700;padding:12px 20px;border:none;cursor:pointer;text-align:left;letter-spacing:.3px;border-top:1px solid rgba(255,255,255,0.15)}
 .nav-player{margin-left:auto;flex-shrink:0;padding-left:8px;border-left:1px solid rgba(255,255,255,0.18)}
 .player-btn{background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.2);color:#fff;font-family:'Inter',sans-serif;font-size:11px;font-weight:500;padding:5px 10px;border-radius:20px;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:5px}
 .player-btn:hover{background:rgba(255,255,255,0.2)}
 .player-btn .avatar{width:20px;height:20px;border-radius:50%;background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700}
+/* Mobile: hide desktop links, show hamburger + enter btn */
+@media(max-width:640px){
+  .nav-links{display:none}
+  .nav-hamburger{display:block}
+  .nav-enter-btn{display:block}
+  .nav-logo-sub{display:none}
+}
 
 /* PLAYER PICKER MODAL */
 .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:500;align-items:center;justify-content:center;padding:16px}
@@ -250,6 +270,7 @@ tbody tr:hover td{background:var(--surface2)}
     <div class="nav-logo-top">Serenity NOW!!!</div>
     <div class="nav-logo-sub">Tuesday League · NOGC</div>
   </div>
+  <!-- Desktop links -->
   <div class="nav-links">
     <button class="nb active" onclick="navTo('dash',this)">Dashboard</button>
     <button class="nb" onclick="navTo('entry',this)">Enter Scores</button>
@@ -258,13 +279,25 @@ tbody tr:hover td{background:var(--surface2)}
     <button class="nb" onclick="navTo('report',this)">Report</button>
     <button class="nb" onclick="navTo('admin',this)">Admin</button>
   </div>
+  <!-- Mobile: Enter Scores CTA + hamburger -->
+  <button class="nav-enter-btn" onclick="navTo('entry',null);closeDrawer()">⛳ Enter Scores</button>
+  <button class="nav-hamburger" onclick="toggleDrawer()" id="hamburger-btn">☰</button>
   <div class="nav-player">
-    <span id="conn-status" style="font-size:10px;color:rgba(255,255,255,0.5);margin-right:8px;display:none" class="conn-hide">● Connecting</span>
+    <span id="conn-status" style="font-size:10px;color:rgba(255,255,255,0.5);margin-right:8px;display:none">● Connecting</span>
     <button class="player-btn" onclick="openPlayerPicker()">
       <div class="avatar" id="nav-avatar">?</div>
-      <span id="nav-player-name">Select Player</span>
+      <span id="nav-player-name">Me</span>
     </button>
   </div>
+</div>
+<!-- Mobile Nav Drawer -->
+<div class="nav-drawer" id="nav-drawer">
+  <button class="nav-drawer-enter" onclick="navTo('entry',null);closeDrawer()">⛳ Enter Scores</button>
+  <button class="nb" onclick="navTo('dash',null);closeDrawer()">Dashboard</button>
+  <button class="nb" onclick="navTo('standings',null);closeDrawer()">Standings</button>
+  <button class="nb" onclick="navTo('schedule',null);closeDrawer()">Schedule</button>
+  <button class="nb" onclick="navTo('report',null);closeDrawer()">Report</button>
+  <button class="nb" onclick="navTo('admin',null);closeDrawer()">Admin</button>
 </div>
 
 <!-- ══ PLAYER PICKER MODAL ══ -->
@@ -287,6 +320,8 @@ tbody tr:hover td{background:var(--surface2)}
   <!-- Competition Tiles -->
   <div style="font-family:'Bebas Neue',sans-serif;font-size:14px;color:var(--g1);letter-spacing:1.5px;margin-bottom:8px;padding:0 2px">Serenity NOW!!! Competitions</div>
   <div class="tiles" id="dash-tiles"></div>
+  <!-- Mobile CTA -->
+  <button onclick="navTo('entry',null)" style="width:100%;background:var(--g-grad);color:#fff;font-family:'Inter',sans-serif;font-weight:700;font-size:15px;padding:14px;border:none;border-radius:12px;cursor:pointer;margin-top:4px;letter-spacing:.3px">⛳ Enter This Week's Score</button>
 </div>
 
 <!-- ══ ENTER SCORES ══ -->
@@ -296,30 +331,41 @@ tbody tr:hover td{background:var(--surface2)}
     <div class="fg"><label>Week</label><select id="ew"></select></div>
     <div class="fg"><label>Player</label><select id="ep" onchange="onPlayerChange()"></select></div>
     <div class="form2">
-      <div class="fg"><label>Handicap</label><input type="number" id="ehcp" min="0" max="54" placeholder="0"></div>
+      <div class="fg"><label>Handicap (18-hole)</label><input type="number" id="ehcp" min="0" max="54" placeholder="0" oninput="updateStrokesDisplay()"></div>
+      <div class="fg"><label>Strokes Received (9-hole)</label>
+        <input type="number" id="estrokes" min="0" max="27" placeholder="auto" style="background:var(--surface2);color:var(--txt3)">
+        <div style="font-size:10px;color:var(--txt3);margin-top:3px" id="strokes-hint">Auto-calculated from handicap ÷ 2</div>
+      </div>
+    </div>
+    <div class="form2">
       <div class="fg"><label>Playing</label>
         <select id="enine" onchange="updateStartHoles()">
           <option value="front">Front 9 (1–9)</option>
           <option value="back">Back 9 (10–18)</option>
         </select>
       </div>
+      <div class="fg"><label>Starting Hole</label><select id="estart"></select></div>
     </div>
-    <div class="fg"><label>Starting Hole</label><select id="estart"></select></div>
     <div class="divider"></div>
     <div style="font-family:'Bebas Neue',sans-serif;font-size:13px;color:var(--g1);letter-spacing:1px;margin-bottom:8px">Entry Mode</div>
     <div style="display:flex;gap:8px;margin-bottom:12px">
       <button class="btn" id="mode-hbh-btn" onclick="setMode('hbh')">Hole by Hole</button>
       <button class="btn-out btn" id="mode-sc-btn" onclick="setMode('sc')">Scorecard View</button>
     </div>
-    <button class="btn" onclick="startEntry()" style="width:100%;justify-content:center">Start Round →</button>
+    <button class="btn" onclick="startEntry()" style="width:100%;justify-content:center;padding:12px;font-size:14px">Start Round →</button>
   </div>
 
   <!-- Hole-by-Hole view -->
   <div id="entry-hbh" style="display:none">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <button class="btn-out btn btn-sm" onclick="resetEntry()">← Back to Setup</button>
+      <button class="btn-out btn btn-sm" onclick="navTo('dash',null)">🏠 Home</button>
+    </div>
     <div class="hbh-dots" id="hbh-dots"></div>
     <div class="hbh-card">
       <div class="hbh-hole-num" id="hbh-hole-num">1</div>
       <div class="hbh-hole-info" id="hbh-hole-info">Par 5 · 528 yds · Hcp 15</div>
+      <div id="hbh-strokes-badge" style="display:none;margin-bottom:8px;font-size:11px;font-weight:600;color:var(--g2);background:rgba(45,122,79,0.08);border:1px solid rgba(45,122,79,0.2);border-radius:20px;padding:2px 10px;display:inline-block"></div>
       <div class="hbh-btns">
         <button class="hbh-pm" onclick="adjScore(-1)">−</button>
         <div>
@@ -328,6 +374,7 @@ tbody tr:hover td{background:var(--surface2)}
         </div>
         <button class="hbh-pm" onclick="adjScore(1)">+</button>
       </div>
+      <div id="hbh-sf-badge" style="text-align:center;margin-bottom:12px;font-size:13px;font-weight:600;color:var(--g1)"></div>
       <div class="hbh-nav">
         <button class="hbh-nav-btn" onclick="hbhPrev()">← Prev</button>
         <button class="hbh-post" onclick="postScores()">Post Score ✓</button>
@@ -339,12 +386,15 @@ tbody tr:hover td{background:var(--surface2)}
   <!-- Scorecard view -->
   <div id="entry-sc" style="display:none">
     <div class="card">
-      <div class="card-title">Scorecard</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+        <div class="card-title" style="margin-bottom:0">Scorecard</div>
+        <button class="btn-out btn btn-sm" onclick="navTo('dash',null)">🏠 Home</button>
+      </div>
       <div id="sc-info" class="alert-green alert" style="margin-bottom:10px"></div>
       <div class="twrap"><table class="sc-table" id="sc-table"></table></div>
       <div class="btn-row">
         <button class="btn" onclick="postScores()" style="flex:1;justify-content:center">Post Score ✓</button>
-        <button class="btn-out btn" onclick="resetEntry()">Cancel</button>
+        <button class="btn-out btn" onclick="resetEntry()">← Back to Setup</button>
       </div>
     </div>
   </div>
@@ -406,9 +456,9 @@ tbody tr:hover td{background:var(--surface2)}
   <div class="tabs">
     <button class="tab active" onclick="switchTab('ad','players',this)">Players</button>
     <button class="tab" onclick="switchTab('ad','scores-admin',this)">Scores</button>
+    <button class="tab" onclick="switchTab('ad','mass-entry',this)">Mass Score Entry</button>
     <button class="tab" onclick="switchTab('ad','gamesetup',this)">Game Setup</button>
     <button class="tab" onclick="switchTab('ad','pool',this)">Pool/$$</button>
-    <button class="tab" onclick="switchTab('ad','courses',this)">Courses</button>
     <button class="tab" onclick="switchTab('ad','league',this)">League</button>
     <button class="tab" onclick="switchTab('ad','reset',this)">Reset</button>
   </div>
@@ -493,34 +543,22 @@ tbody tr:hover td{background:var(--surface2)}
     </div>
   </div>
 
-  <div id="ad-courses" style="display:none">
+  <div id="ad-mass-entry" style="display:none">
     <div class="card">
-      <div class="card-title">Courses</div>
-      <div class="alert">Add courses here. The active course's hole handicaps are used for net score calculations across all competitions.</div>
-      <div id="course-list" style="margin-bottom:12px"></div>
-      <div class="divider"></div>
-      <div class="sec-bar">Add / Edit Course</div>
-      <input type="hidden" id="cid">
-      <div class="form2">
-        <div class="fg"><label>Course Name</label><input type="text" id="cname" placeholder="e.g. North Oaks Golf Club"></div>
-        <div class="fg"><label>City / State</label><input type="text" id="ccity" placeholder="e.g. North Oaks, MN"></div>
+      <div class="card-title">Mass Score Entry</div>
+      <div class="alert">Enter all player scores for a week in one grid. Shows all 9 holes for the active 9. Click Save All when done.</div>
+      <div class="form2" style="margin-bottom:10px">
+        <div class="fg"><label>Week</label><select id="me-week" onchange="renderMassEntry()"></select></div>
+        <div class="fg"><label>Playing</label>
+          <select id="me-nine" onchange="renderMassEntry()">
+            <option value="front">Front 9 (1–9)</option>
+            <option value="back">Back 9 (10–18)</option>
+          </select>
+        </div>
       </div>
-      <div class="fg" style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
-        <input type="checkbox" id="cactive" style="width:auto;margin:0">
-        <label style="text-transform:none;font-size:13px;color:var(--txt2);margin:0">Set as active course (used for all score calculations)</label>
-      </div>
-      <div style="font-family:'Bebas Neue',sans-serif;font-size:13px;color:var(--g1);letter-spacing:1px;margin-bottom:8px">Hole Details</div>
-      <div class="twrap">
-        <table style="min-width:500px">
-          <thead><tr>
-            <th>Hole</th><th>Par</th><th>Yards</th><th>Hcp #</th>
-          </tr></thead>
-          <tbody id="course-hole-inputs"></tbody>
-        </table>
-      </div>
+      <div class="twrap" id="mass-entry-wrap"></div>
       <div class="btn-row">
-        <button class="btn" onclick="saveCourse()">Save Course</button>
-        <button class="btn-out btn btn-sm" onclick="clearCForm()">Clear</button>
+        <button class="btn" onclick="saveMassEntry()" style="flex:1;justify-content:center">Save All Scores</button>
       </div>
     </div>
   </div>
@@ -583,12 +621,12 @@ const WEEKS=[
   {num:7,date:'7/7',opp:'Wagyu Hand Roll',cap:'Dunleavy'}
 ];
 const SC={
-  front:[{h:1,p:5,hcp:15,y:528},{h:2,p:4,hcp:1,y:465},{h:3,p:4,hcp:3,y:423},
-    {h:4,p:4,hcp:11,y:354},{h:5,p:3,hcp:9,y:224},{h:6,p:4,hcp:7,y:395},
-    {h:7,p:4,hcp:5,y:441},{h:8,p:3,hcp:13,y:208},{h:9,p:5,hcp:17,y:506}],
-  back:[{h:10,p:4,hcp:16,y:352},{h:11,p:3,hcp:12,y:178},{h:12,p:4,hcp:10,y:367},
-    {h:13,p:3,hcp:18,y:154},{h:14,p:4,hcp:2,y:436},{h:15,p:3,hcp:4,y:228},
-    {h:16,p:5,hcp:6,y:546},{h:17,p:4,hcp:8,y:382},{h:18,p:5,hcp:14,y:485}]
+  front:[{h:1,p:5,hcp:11,y:513},{h:2,p:4,hcp:1,y:444},{h:3,p:4,hcp:5,y:404},
+    {h:4,p:4,hcp:15,y:345},{h:5,p:3,hcp:9,y:194},{h:6,p:4,hcp:7,y:389},
+    {h:7,p:4,hcp:3,y:433},{h:8,p:3,hcp:13,y:188},{h:9,p:5,hcp:17,y:475}],
+  back:[{h:10,p:4,hcp:16,y:336},{h:11,p:3,hcp:8,y:169},{h:12,p:4,hcp:12,y:360},
+    {h:13,p:3,hcp:18,y:145},{h:14,p:4,hcp:2,y:402},{h:15,p:3,hcp:4,y:223},
+    {h:16,p:5,hcp:10,y:512},{h:17,p:4,hcp:6,y:370},{h:18,p:5,hcp:14,y:475}]
 };
 const ALL_H=[...SC.front,...SC.back];
 
@@ -699,12 +737,39 @@ function getAllHoles(){
 }
 const pname=id=>{const p=S.players.find(x=>x.id===id);return p?p.first+' '+p.last:'?'};
 const pfirst=id=>{const p=S.players.find(x=>x.id===id);return p?p.first:'?'};
-function netStr(hcp,hhcp){const n=Math.round(hcp/2);return n>=hhcp+9?2:n>=hhcp?1:0}
-function netSc(gross,hcp,hhcp){return gross-netStr(hcp,hhcp)}
+// Net strokes: use course handicap directly (full 18-hole hcp passed in)
+// extraStrokes = player's course handicap (calculated before round starts)
+function calcCourseHcp(playerHcp, nine){
+  // For 9-hole play, USGA method: course hcp = round(playerHcp * (slope/113) * 0.5)
+  // We store full 18-hole hcp; for 9 holes divide by 2
+  return Math.round(playerHcp / 2);
+}
+function netStr(courseHcp9, holeHcp){
+  // courseHcp9 = 9-hole course handicap (strokes for 9 holes)
+  // strokes given on holes where holeHcp <= courseHcp9
+  let s=0;
+  if(courseHcp9>=holeHcp)s=1;
+  if(courseHcp9>=holeHcp+9)s=2;
+  return s;
+}
+function netSc(gross,courseHcp9,holeHcp){return gross-netStr(courseHcp9,holeHcp)}
 function sfPts(net,par){const d=net-par;return d<=-2?4:d===-1?3:d===0?2:d===1?1:0}
-function rndSF(s){return getHoles(s.nine).reduce((t,h)=>{const g=s.holes.find(x=>x.hole===h.h);return g&&g.gross?t+sfPts(netSc(g.gross,s.handicap,h.hcp),h.p):t},0)}
+function hcp9(fullHcp){return Math.round(fullHcp/2)} // 18-hole hcp → 9-hole strokes
+function rndSF(s){
+  const c9=hcp9(s.handicap);
+  return getHoles(s.nine).reduce((t,h)=>{
+    const g=s.holes.find(x=>x.hole===h.h);
+    return g&&g.gross?t+sfPts(netSc(g.gross,c9,h.hcp),h.p):t;
+  },0);
+}
 function rndGross(s){return s.holes.reduce((t,h)=>t+(h.gross||0),0)}
-function rndNet(s){return getHoles(s.nine).reduce((t,h)=>{const g=s.holes.find(x=>x.hole===h.h);return g&&g.gross?t+netSc(g.gross,s.handicap,h.hcp):t},0)}
+function rndNet(s){
+  const c9=hcp9(s.handicap);
+  return getHoles(s.nine).reduce((t,h)=>{
+    const g=s.holes.find(x=>x.hole===h.h);
+    return g&&g.gross?t+netSc(g.gross,c9,h.hcp):t;
+  },0);
+}
 function wkS(w){return S.scores.filter(s=>s.week===w)}
 function top4(pts){
   const sorted=[...pts].sort((a,b)=>b.sf-a.sf);
@@ -787,8 +852,29 @@ function getCurWeek(){
   return 1; // before season starts, show week 1 as current
 }
 
-// ═══ NAV ═══
+// ═══ MOBILE NAV ═══
+function toggleDrawer(){
+  const d=document.getElementById('nav-drawer');
+  const b=document.getElementById('hamburger-btn');
+  d.classList.toggle('open');
+  b.textContent=d.classList.contains('open')?'✕':'☰';
+}
+function closeDrawer(){
+  const d=document.getElementById('nav-drawer');
+  const b=document.getElementById('hamburger-btn');
+  if(d){d.classList.remove('open')}
+  if(b){b.textContent='☰'}
+}
+// Close drawer if tapping outside
+document.addEventListener('click',e=>{
+  const drawer=document.getElementById('nav-drawer');
+  const btn=document.getElementById('hamburger-btn');
+  if(drawer?.classList.contains('open')&&!drawer.contains(e.target)&&!btn?.contains(e.target)){
+    closeDrawer();
+  }
+});
 function navTo(id,btn){
+  closeDrawer();
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nb').forEach(b=>b.classList.remove('active'));
   document.getElementById('page-'+id).classList.add('active');
@@ -840,7 +926,7 @@ function renderDashPods(){
   });
   el.innerHTML=pods.map(({pod,teams})=>`
     <div class="pod-card">
-      <div class="pod-header">Pod ${pod==='1'?'A':'B'}</div>
+      <div class="pod-header">Pod ${pod===1?'A':'B'}</div>
       ${teams.length?teams.map((t,i)=>`<div class="pod-row ${t.ours?'us':''}">
         <div class="pod-rank ${i<4?'q':''}">${i+1}</div>
         <div class="pod-team">${t.ours?`<strong>${t.name}</strong>`:t.name}</div>
@@ -898,12 +984,29 @@ function initEntry(){
     document.getElementById('ep').value=currentPlayer.id;
     document.getElementById('ehcp').value=currentPlayer.handicap||0;
   }
+  updateStrokesDisplay();
+}
+function updateStrokesDisplay(){
+  const hcp=parseFloat(document.getElementById('ehcp')?.value)||0;
+  const auto=hcp9(hcp);
+  const el=document.getElementById('strokes-hint');
+  if(el)el.textContent=`Auto: ${hcp} ÷ 2 = ${auto} strokes for 9 holes`;
+  // Only auto-fill if user hasn't typed in strokes manually
+  const si=document.getElementById('estrokes');
+  if(si&&si.dataset.manual!=='1')si.value='';
 }
 function onPlayerChange(){
   const pid=document.getElementById('ep').value;
   const p=S.players.find(x=>x.id===pid);
-  if(p)document.getElementById('ehcp').value=p.handicap||0;
+  if(p){
+    document.getElementById('ehcp').value=p.handicap||0;
+    const si=document.getElementById('estrokes');
+    if(si){si.value='';si.dataset.manual='0'}
+    updateStrokesDisplay();
+  }
 }
+// Mark strokes as manually set
+document.addEventListener('change',e=>{if(e.target.id==='estrokes')e.target.dataset.manual='1'});
 function updateStartHoles(){
   const nine=document.getElementById('enine')?.value||'front';
   pSel('estart',getHoles(nine).map(h=>({v:h.h,l:`Hole ${h.h}`})));
@@ -919,13 +1022,16 @@ function startEntry(){
   const nine=document.getElementById('enine').value;
   const startHole=parseInt(document.getElementById('estart').value);
   if(!pid){alert('Please select a player');return}
+  // Allow override of strokes; else auto-calculate
+  const strokesEl=document.getElementById('estrokes');
+  const strokes9=strokesEl&&strokesEl.value!==''?parseInt(strokesEl.value):hcp9(hcp);
   const existing=wkS(parseInt(document.getElementById('ew').value));
   const ep=[...new Set(existing.map(s=>s.playerId))];
   if(!ep.includes(pid)&&ep.length>=8){alert('Week already has 8 players. Max 8 per week.');return}
   const hls=getHoles(nine);const si=hls.findIndex(h=>h.h===startHole);
   const ordered=[...hls.slice(si),...hls.slice(0,si)];
-  hbhData={holes:ordered,idx:0,scores:{},nine,startHole,hcp,playerId:pid,week:parseInt(document.getElementById('ew').value)};
-  // init scores to par
+  // Store both full hcp and effective 9-hole strokes
+  hbhData={holes:ordered,idx:0,scores:{},nine,startHole,hcp,strokes9,playerId:pid,week:parseInt(document.getElementById('ew').value)};
   ordered.forEach(h=>{hbhData.scores[h.h]=h.p});
   document.getElementById('entry-setup-card').style.display='none';
   document.getElementById('entry-done').style.display='none';
@@ -940,22 +1046,43 @@ function startEntry(){
   }
 }
 // ── HBH ──
+// Stableford label lookup (net score vs par)
+function sfLabel(sfPts){
+  return['Double Bogey+','Bogey','Par','Birdie','Eagle+'][Math.min(4,Math.max(0,sfPts+0))];
+  // sfPts: 0=DblBogey+, 1=Bogey, 2=Par, 3=Birdie, 4=Eagle
+}
+const SF_COLORS=['var(--txt4)','var(--txt3)','var(--g2)','var(--gold)','var(--gold)'];
+const SF_LABELS=['Double Bogey+ — 0 pts','Bogey — 1 pt','Par — 2 pts','Birdie — 3 pts','Eagle — 4 pts'];
 function renderHBH(){
   const h=hbhData.holes[hbhData.idx];
   const score=hbhData.scores[h.h]||h.p;
-  const net=netSc(score,hbhData.hcp,h.hcp);
+  const c9=hbhData.strokes9||hcp9(hbhData.hcp);
+  const net=netSc(score,c9,h.hcp);
   const sf=sfPts(net,h.p);
   const diff=score-h.p;
-  // dots
+  const netDiff=net-h.p;
+  const strokesOnHole=netStr(c9,h.hcp);
   document.getElementById('hbh-dots').innerHTML=hbhData.holes.map((hh,i)=>`<div class="hbh-dot ${i<hbhData.idx?'done':i===hbhData.idx?'current':''}" onclick="hbhGoTo(${i})"></div>`).join('');
   document.getElementById('hbh-hole-num').textContent='Hole '+h.h;
   document.getElementById('hbh-hole-info').textContent=`Par ${h.p} · ${h.y} yds · Hcp ${h.hcp}`;
+  // Strokes badge
+  const sb=document.getElementById('hbh-strokes-badge');
+  if(sb){
+    if(strokesOnHole>0){sb.textContent=strokesOnHole===2?'+2 strokes this hole':'+1 stroke this hole';sb.style.display='inline-block'}
+    else{sb.style.display='none'}
+  }
   const sd=document.getElementById('hbh-score');sd.textContent=score;
-  sd.className='hbh-score'+(diff<0?' under':diff===0?' at-par':' over');
+  sd.className='hbh-score'+(netDiff<-1?' under':netDiff===0||netDiff===-1?' at-par':' over');
+  // To par line shows GROSS diff
   const tp=document.getElementById('hbh-topar');
-  const sfStr=`${sf} Stableford pt${sf!==1?'s':''}`;
-  tp.textContent=diff===0?'E (par)':diff>0?'+'+diff+' · '+sfStr:diff+' · '+sfStr;
+  tp.textContent=diff===0?'E (gross par)':diff>0?'+'+diff+' gross':diff+' gross';
   tp.className='hbh-topar'+(diff<0?' u':diff===0?' e':' o');
+  // Stableford badge
+  const sfb=document.getElementById('hbh-sf-badge');
+  if(sfb){
+    sfb.textContent=SF_LABELS[Math.min(4,Math.max(0,sf))];
+    sfb.style.color=SF_COLORS[Math.min(4,Math.max(0,sf))];
+  }
 }
 function adjScore(d){
   const h=hbhData.holes[hbhData.idx];
@@ -1292,14 +1419,15 @@ function renderAdmin(){
   renderRoster();
   pSel('swf',[{v:'',l:'All Weeks'},...WEEKS.map(w=>({v:w.num,l:`Week ${w.num} (${w.date})`}))]);
   pSel('spf',[{v:'',l:'All Players'},...S.players.map(p=>({v:p.id,l:`${p.first} ${p.last}`}))]);
-  loadScoreAdmin();renderGBAdmin();renderPoolAdmin();renderCoursesAdmin();renderLeagueAdmin();renderWeeklyScoreGrid();
+  loadScoreAdmin();renderGBAdmin();renderPoolAdmin();renderLeagueAdmin();renderWeeklyScoreGrid();
+  initMassEntry();
 }
 function renderAdminTab(name){
   if(name==='players')renderRoster();
   if(name==='scores-admin')loadScoreAdmin();
+  if(name==='mass-entry'){initMassEntry();renderMassEntry();}
   if(name==='gamesetup')renderGBAdmin();
   if(name==='pool')renderPoolAdmin();
-  if(name==='courses')renderCoursesAdmin();
   if(name==='league'){renderLeagueAdmin();renderWeeklyScoreGrid();}
 }
 function renderRoster(){
@@ -1474,7 +1602,94 @@ async function resetAll(){
   updateNavPlayer();refreshAll();alert('All data reset.');
 }
 
-// ── COURSE ADMIN ──
+// ── MASS SCORE ENTRY (Admin) ──
+function initMassEntry(){
+  pSel('me-week',WEEKS.map(w=>({v:w.num,l:`Week ${w.num} (${w.date}) vs ${w.opp}`})));
+}
+function renderMassEntry(){
+  const week=parseInt(document.getElementById('me-week')?.value)||1;
+  const nine=document.getElementById('me-nine')?.value||'front';
+  const hls=getHoles(nine);
+  const el=document.getElementById('mass-entry-wrap');
+  if(!el)return;
+  if(!S.players.length){el.innerHTML='<div class="empty-state"><div class="ei">👥</div>Add players first.</div>';return}
+  // Build header
+  const hdrCells=hls.map(h=>`<th title="Par ${h.p}, Hcp ${h.hcp}">${h.h}<br><span style="font-size:9px;font-weight:400;color:rgba(255,255,255,0.65)">P${h.p}</span></th>`).join('');
+  // Build rows — pre-fill with existing scores if any
+  const rows=S.players.map(p=>{
+    const existing=S.scores.find(s=>s.playerId===p.id&&s.week===week);
+    const cells=hls.map(h=>{
+      const gh=existing?.holes.find(x=>x.hole===h.h);
+      const val=gh?.gross||'';
+      return`<td style="padding:3px"><input class="week-score-inp" type="number" data-pid="${p.id}" data-hole="${h.h}" value="${val}" min="1" max="12" inputmode="numeric" style="width:36px;height:30px"></td>`;
+    }).join('');
+    const c9=hcp9(p.handicap||0);
+    return`<tr>
+      <td style="white-space:nowrap;font-size:12px;font-weight:500;padding:4px 8px">${p.first} ${p.last}</td>
+      <td style="font-size:11px;color:var(--txt3);padding:4px 6px">${p.handicap||0}<br><span style="font-size:10px">${c9}str</span></td>
+      ${cells}
+      <td id="me-sf-${p.id}" style="font-size:12px;font-weight:700;color:var(--g2);padding:4px 6px;text-align:center">–</td>
+    </tr>`;
+  }).join('');
+  el.innerHTML=`<table style="font-size:12px;min-width:500px;border-collapse:collapse">
+    <thead><tr>
+      <th style="text-align:left">Player</th>
+      <th>HCP</th>
+      ${hdrCells}
+      <th>SF Pts</th>
+    </tr></thead>
+    <tbody>${rows}</tbody>
+  </table>`;
+  // Live stableford update on input
+  el.querySelectorAll('input[data-pid]').forEach(inp=>{
+    inp.addEventListener('input',()=>updateMassSF(week,nine));
+  });
+}
+function updateMassSF(week,nine){
+  const hls=getHoles(nine);
+  S.players.forEach(p=>{
+    const inputs=document.querySelectorAll(`input[data-pid="${p.id}"]`);
+    const c9=hcp9(p.handicap||0);
+    let sf=0,hasScore=false;
+    inputs.forEach(inp=>{
+      const hole=parseInt(inp.dataset.hole);
+      const gross=parseInt(inp.value);
+      if(!gross||!hole)return;
+      hasScore=true;
+      const hd=hls.find(h=>h.h===hole);
+      if(hd)sf+=sfPts(netSc(gross,c9,hd.hcp),hd.p);
+    });
+    const el=document.getElementById('me-sf-'+p.id);
+    if(el)el.textContent=hasScore?sf:'–';
+  });
+}
+async function saveMassEntry(){
+  const week=parseInt(document.getElementById('me-week')?.value)||1;
+  const nine=document.getElementById('me-nine')?.value||'front';
+  const hls=getHoles(nine);
+  let saved=0;
+  // Group inputs by player
+  for(const p of S.players){
+    const inputs=document.querySelectorAll(`input[data-pid="${p.id}"]`);
+    const holes=[];
+    inputs.forEach(inp=>{
+      const gross=parseInt(inp.value);
+      const hole=parseInt(inp.dataset.hole);
+      if(gross&&hole)holes.push({hole,gross});
+    });
+    if(!holes.length)continue;
+    const ns={id:p.id+'_w'+week,playerId:p.id,week,nine,startHole:hls[0].h,
+      handicap:p.handicap||0,holes,submittedAt:new Date().toISOString()};
+    S.scores=S.scores.filter(s=>!(s.playerId===p.id&&s.week===week));
+    S.scores.push(ns);
+    saved++;
+  }
+  if(!saved){alert('No scores entered.');return}
+  await sv('scores');
+  alert(`Saved scores for ${saved} player${saved!==1?'s':''}!`);
+}
+
+// ═══ UTILS ═══
 function renderCoursesAdmin(){
   const el=document.getElementById('course-list');if(!el)return;
   if(!S.courses.length){
