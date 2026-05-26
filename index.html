@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0">
 <title>Serenity NOW!!! — Tuesday League</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <style>
 :root{
   --bg:#f5f6f4;--surface:#fff;--surface2:#f0f2ee;--border:#e0e4dc;--border-hi:#c4ccbd;
@@ -256,6 +259,7 @@ tbody tr:hover td{background:var(--surface2)}
     <button class="nb" onclick="navTo('admin',this)">Admin</button>
   </div>
   <div class="nav-player">
+    <span id="conn-status" style="font-size:10px;color:rgba(255,255,255,0.5);margin-right:8px;display:none" class="conn-hide">● Connecting</span>
     <button class="player-btn" onclick="openPlayerPicker()">
       <div class="avatar" id="nav-avatar">?</div>
       <span id="nav-player-name">Select Player</span>
@@ -596,16 +600,86 @@ let currentPlayer=null; // {id,first,last,handicap}
 let entryMode='hbh';
 let hbhData={holes:[],idx:0,scores:{},nine:'front',startHole:1,hcp:0};
 
-// ═══ STORAGE ═══
-async function loadState(){
-  for(const k of['players','scores','leagueTeams','gbTargets','courses','cfg']){
-    try{const r=await window.storage.get(k);if(r?.value)S[k]=JSON.parse(r.value)}catch(e){}
-  }
-  try{const r=await window.storage.get('currentPlayer');if(r?.value){currentPlayer=JSON.parse(r.value);updateNavPlayer()}}catch(e){}
-  refreshAll();
+// ═══ FIREBASE INIT ═══
+const fbConfig={
+  apiKey:"AIzaSyD9Lwod1yBBlDTinQC_U_leAwBz5CGxkOU",
+  databaseURL:"https://nogc-tnl-default-rtdb.firebaseio.com"
+};
+firebase.initializeApp(fbConfig);
+const db=firebase.database();
+
+// ── Connection status indicator ──
+const connRef=db.ref('.info/connected');
+connRef.on('value',snap=>{
+  const el=document.getElementById('conn-status');
+  if(!el)return;
+  el.style.display='inline';
+  if(snap.val()===true){el.textContent='● Online';el.style.color='rgba(255,255,255,0.6)'}
+  else{el.textContent='● Offline';el.style.color='rgba(255,100,100,0.8)'}
+});
+
+// ── Firebase helpers ──
+// sv(key) — write S[key] to Firebase
+// Arrays are stored as {id: item} maps so Firebase doesn't lose data on concurrent writes
+async function sv(key){
+  try{
+    let val=S[key];
+    // Convert arrays to id-keyed objects for Firebase
+    if(Array.isArray(val)){
+      const obj={};
+      val.forEach(item=>{
+        const k=item.id||item.num||Date.now()+'_'+Math.random().toString(36).slice(2);
+        obj[k]=item;
+      });
+      val=obj;
+    }
+    await db.ref('app/'+key).set(val);
+  }catch(e){console.error('Firebase write error',key,e)}
 }
-async function sv(k){try{await window.storage.set(k,JSON.stringify(S[k]))}catch(e){}}
-async function svCurrentPlayer(){try{await window.storage.set('currentPlayer',JSON.stringify(currentPlayer))}catch(e){}}
+// svCurrentPlayer — write to localStorage only (per-device)
+function svCurrentPlayer(){
+  try{localStorage.setItem('sn_currentPlayer',JSON.stringify(currentPlayer))}catch(e){}
+}
+
+// ── Load all state from Firebase once, then set up live listeners ──
+let _initialized=false;
+function loadState(){
+  showLoading(true);
+  // Load current player from localStorage (device-specific)
+  try{
+    const cp=localStorage.getItem('sn_currentPlayer');
+    if(cp){currentPlayer=JSON.parse(cp);updateNavPlayer()}
+  }catch(e){}
+
+  // Listen to entire app node — fires once on load, then on any remote change
+  db.ref('app').on('value',snap=>{
+    const data=snap.val()||{};
+    S.players      = data.players      ? Object.values(data.players)      : [];
+    S.scores       = data.scores       ? Object.values(data.scores)       : [];
+    S.leagueTeams  = data.leagueTeams  ? Object.values(data.leagueTeams)  : [];
+    S.gbTargets    = data.gbTargets    || {};
+    S.courses      = data.courses      ? Object.values(data.courses)      : [];
+    S.cfg          = data.cfg          || S.cfg;
+    showLoading(false);
+    if(!_initialized){_initialized=true}
+    refreshAll();
+  },err=>{
+    showLoading(false);
+    console.error('Firebase read error',err);
+    document.getElementById('conn-status').textContent='⚠ Error loading data';
+  });
+}
+
+function showLoading(on){
+  let el=document.getElementById('loading-bar');
+  if(!el){
+    el=document.createElement('div');el.id='loading-bar';
+    el.style.cssText='position:fixed;top:0;left:0;width:100%;height:3px;background:var(--g3);z-index:9999;transition:opacity .3s';
+    document.body.prepend(el);
+  }
+  el.style.opacity=on?'1':'0';
+}
+// currentPlayer saved per-device via svCurrentPlayer() above
 
 // ═══ GOLF MATH ═══
 // Return holes from active course if set, otherwise fall back to built-in North Oaks data
@@ -1372,14 +1446,31 @@ async function delTeam(id){
 function clearTForm(){['ltid','ltname','ltcap'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=''})}
 
 // ── RESET ──
-async function resetScores(){if(!confirm('Delete ALL scores? Cannot be undone.'))return;S.scores=[];await sv('scores');alert('All scores cleared.')}
-async function resetPlayers(){if(!confirm('Delete ALL players?'))return;S.players=[];currentPlayer=null;await sv('players');svCurrentPlayer();updateNavPlayer();renderRoster();}
-async function resetLeague(){if(!confirm('Delete all league teams?'))return;S.leagueTeams=[];await sv('leagueTeams');renderLeagueAdmin();renderWeeklyScoreGrid();}
+async function resetScores(){
+  if(!confirm('Delete ALL scores? Cannot be undone.'))return;
+  S.scores=[];
+  try{await db.ref('app/scores').set(null)}catch(e){}
+  alert('All scores cleared.');
+}
+async function resetPlayers(){
+  if(!confirm('Delete ALL players?'))return;
+  S.players=[];currentPlayer=null;
+  try{await db.ref('app/players').set(null)}catch(e){}
+  try{localStorage.removeItem('sn_currentPlayer')}catch(e){}
+  updateNavPlayer();renderRoster();
+}
+async function resetLeague(){
+  if(!confirm('Delete all league teams?'))return;
+  S.leagueTeams=[];
+  try{await db.ref('app/leagueTeams').set(null)}catch(e){}
+  renderLeagueAdmin();renderWeeklyScoreGrid();
+}
 async function resetAll(){
   if(!confirm('Reset EVERYTHING? All scores, players, and settings will be deleted.'))return;
   S={players:[],scores:[],leagueTeams:[],gbTargets:{},courses:[],cfg:{poolPlayers:10,entryFee:100,gbWeekly:20,skinsWeekly:20,lowGross:10,lowNet:10,i1:125,i2:75,i3:50,r1:75,r2:50,r3:25}};
   currentPlayer=null;
-  for(const k of['players','scores','leagueTeams','gbTargets','courses','cfg','currentPlayer'])try{await window.storage.delete(k)}catch(e){}
+  try{await db.ref('app').set(null)}catch(e){console.error('Reset error',e)}
+  try{localStorage.removeItem('sn_currentPlayer')}catch(e){}
   updateNavPlayer();refreshAll();alert('All data reset.');
 }
 
