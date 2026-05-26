@@ -275,8 +275,7 @@ tbody tr:hover td{background:var(--surface2)}
     <button class="nb active" onclick="navTo('dash',this)">Dashboard</button>
     <button class="nb" onclick="navTo('entry',this)">Enter Scores</button>
     <button class="nb" onclick="navTo('standings',this)">Standings</button>
-    <button class="nb" onclick="navTo('schedule',this)">Schedule</button>
-    <button class="nb" onclick="navTo('report',this)">Report</button>
+    <button class="nb" onclick="navTo('schedule',this)">Results</button>
     <button class="nb" onclick="navTo('admin',this)">Admin</button>
   </div>
   <!-- Mobile: Enter Scores CTA + hamburger -->
@@ -295,8 +294,7 @@ tbody tr:hover td{background:var(--surface2)}
   <button class="nav-drawer-enter" onclick="navTo('entry',null);closeDrawer()">⛳ Enter Scores</button>
   <button class="nb" onclick="navTo('dash',null);closeDrawer()">Dashboard</button>
   <button class="nb" onclick="navTo('standings',null);closeDrawer()">Standings</button>
-  <button class="nb" onclick="navTo('schedule',null);closeDrawer()">Schedule</button>
-  <button class="nb" onclick="navTo('report',null);closeDrawer()">Report</button>
+  <button class="nb" onclick="navTo('schedule',null);closeDrawer()">Results</button>
   <button class="nb" onclick="navTo('admin',null);closeDrawer()">Admin</button>
 </div>
 
@@ -433,22 +431,13 @@ tbody tr:hover td{background:var(--surface2)}
   <div id="st-prize" style="display:none"></div>
 </div>
 
-<!-- ══ SCHEDULE ══ -->
+<!-- ══ SCHEDULE / RESULTS ══ -->
 <div id="page-schedule" class="page">
   <div class="card">
-    <div class="card-title">2026 Season Schedule</div>
+    <div class="card-title">2026 Results &amp; Schedule</div>
     <div id="sched-list"></div>
   </div>
-</div>
-
-<!-- ══ CAPTAIN'S REPORT ══ -->
-<div id="page-report" class="page">
-  <div class="card">
-    <div class="card-title">Captain's Report</div>
-    <div class="fg"><label>Select Week</label><select id="rw"></select></div>
-    <button class="btn" onclick="genReport()" style="width:100%;justify-content:center;margin-top:4px">Generate Report</button>
-    <div id="report-out" style="margin-top:14px"></div>
-  </div>
+  <div id="week-detail"></div>
 </div>
 
 <!-- ══ ADMIN ══ -->
@@ -460,6 +449,7 @@ tbody tr:hover td{background:var(--surface2)}
     <button class="tab" onclick="switchTab('ad','gamesetup',this)">Game Setup</button>
     <button class="tab" onclick="switchTab('ad','pool',this)">Pool/$$</button>
     <button class="tab" onclick="switchTab('ad','league',this)">League</button>
+    <button class="tab" onclick="switchTab('ad','report-admin',this)">Captain's Report</button>
     <button class="tab" onclick="switchTab('ad','reset',this)">Reset</button>
   </div>
 
@@ -591,6 +581,15 @@ tbody tr:hover td{background:var(--surface2)}
         <table class="score-grid" id="weekly-score-grid"></table>
       </div>
       <div class="btn-row"><button class="btn" onclick="saveWeeklyScores()">Save All Scores</button></div>
+    </div>
+  </div>
+
+  <div id="ad-report-admin" style="display:none">
+    <div class="card">
+      <div class="card-title">Captain's Report</div>
+      <div class="fg"><label>Select Week</label><select id="rw"></select></div>
+      <button class="btn" onclick="genReport()" style="width:100%;justify-content:center;margin-top:4px">Generate Report</button>
+      <div id="report-out" style="margin-top:14px"></div>
     </div>
   </div>
 
@@ -793,45 +792,75 @@ function skinsByWeek(w){
 }
 function calcAllStats(){
   const m={};
-  S.players.forEach(p=>{m[p.id]={playerId:p.id,contrib:0,total:0,weekly:{},skins:0,skinsWin:0,lgWins:0,lnWins:0,lgTotal:0,lnTotal:0,gbWin:0,ringerTotal:null}});
+  S.players.forEach(p=>{m[p.id]={playerId:p.id,contrib:0,total:0,weekly:{},skins:0,skinsWin:0,
+    lgWins:0,lnWins:0,lgTotal:0,lnTotal:0,lgWin:0,lnWin:0,gbWin:0,ringerTotal:null,ringerBest:{}}});
   const c=S.cfg;
   for(const w of WEEKS){
     const ws=wkS(w.num);if(!ws.length)continue;
-    // stableford
+    // stableford — top4 with fractional tie handling
     const pts=ws.map(s=>({playerId:s.playerId,sf:rndSF(s)}));
-    top4(pts).forEach(p=>{if(!m[p.playerId])return;m[p.playerId].total+=p.sf;m[p.playerId].contrib+=p.contributed*p.sf;m[p.playerId].weekly[w.num]={pts:p.sf,contrib:p.contributed}});
+    top4(pts).forEach(p=>{
+      if(!m[p.playerId])return;
+      m[p.playerId].total+=p.sf;
+      m[p.playerId].contrib+=p.contributed*p.sf;
+      m[p.playerId].weekly[w.num]={pts:p.sf,contrib:p.contributed};
+    });
     // skins
-    const sk=skinsByWeek(w.num);const perSkin=sk.length?(c.skinsWeekly||20)/sk.length:0;
+    const sk=skinsByWeek(w.num);
+    const perSkin=sk.length?(c.skinsWeekly||20)/sk.length:0;
     sk.forEach(s=>{if(m[s.playerId]){m[s.playerId].skins++;m[s.playerId].skinsWin+=perSkin}});
-    // low gross/net
+    // low gross — split prize on tie
     const gs=ws.map(s=>({pid:s.playerId,v:rndGross(s)})).filter(x=>x.v>0);
+    if(gs.length){
+      const mn=Math.min(...gs.map(x=>x.v));
+      const winners=gs.filter(x=>x.v===mn);
+      const prize=(c.lowGross||10)/winners.length;
+      gs.forEach(x=>{
+        if(!m[x.pid])return;
+        m[x.pid].lgTotal+=x.v;
+        if(x.v===mn){m[x.pid].lgWins++;m[x.pid].lgWin+=prize;}
+      });
+    }
+    // low net — split prize on tie
     const ns=ws.map(s=>({pid:s.playerId,v:rndNet(s)})).filter(x=>x.v>0);
-    if(gs.length){const mn=Math.min(...gs.map(x=>x.v));gs.forEach(x=>{if(m[x.pid]){m[x.pid].lgTotal+=x.v;if(x.v===mn){m[x.pid].lgWins++;m[x.pid].skinsWin+=0;/* separate field */}}})}
-    if(ns.length){const mn=Math.min(...ns.map(x=>x.v));ns.forEach(x=>{if(m[x.pid]){m[x.pid].lnTotal+=x.v;if(x.v===mn)m[x.pid].lnWins++}})}
-    // gb
-    const tid=S.gbTargets[w.num];const ts=ws.find(s=>s.playerId===tid);const tNet=ts?rndNet(ts):null;
+    if(ns.length){
+      const mn=Math.min(...ns.map(x=>x.v));
+      const winners=ns.filter(x=>x.v===mn);
+      const prize=(c.lowNet||10)/winners.length;
+      ns.forEach(x=>{
+        if(!m[x.pid])return;
+        m[x.pid].lnTotal+=x.v;
+        if(x.v===mn){m[x.pid].lnWins++;m[x.pid].lnWin+=prize;}
+      });
+    }
+    // gang bang
+    const tid=S.gbTargets[w.num];const ts=ws.find(s=>s.playerId===tid);
+    const tNet=ts?rndNet(ts):null;
     if(tNet!==null){
       const beaters=ws.filter(s=>s.playerId!==tid&&rndNet(s)<tNet);
       if(!beaters.length&&ts&&m[tid])m[tid].gbWin+=(c.gbWeekly||20);
-      else if(beaters.length){const sh=(c.gbWeekly||20)/beaters.length;beaters.forEach(s=>{if(m[s.playerId])m[s.playerId].gbWin+=sh})}
+      else if(beaters.length){
+        const sh=(c.gbWeekly||20)/beaters.length;
+        beaters.forEach(s=>{if(m[s.playerId])m[s.playerId].gbWin+=sh});
+      }
     }
   }
-  // low gross/net winnings
-  for(const w of WEEKS){
-    const ws=wkS(w.num);if(!ws.length)continue;
-    const gs=ws.map(s=>({pid:s.playerId,v:rndGross(s)})).filter(x=>x.v>0);
-    const ns=ws.map(s=>({pid:s.playerId,v:rndNet(s)})).filter(x=>x.v>0);
-    if(gs.length){const mn=Math.min(...gs.map(x=>x.v));gs.filter(x=>x.v===mn).forEach(x=>{if(m[x.pid])m[x.pid].lgWin=(m[x.pid].lgWin||0)+(c.lowGross||10)})}
-    if(ns.length){const mn=Math.min(...ns.map(x=>x.v));ns.filter(x=>x.v===mn).forEach(x=>{if(m[x.pid])m[x.pid].lnWin=(m[x.pid].lnWin||0)+(c.lowNet||10)})}
-  }
-  // ringer
+  // ringer — use hcp9 correctly
   S.players.forEach(p=>{
     const best={};
     S.scores.filter(s=>s.playerId===p.id).forEach(sc=>{
-      getHoles(sc.nine).forEach(hd=>{const g=sc.holes.find(h=>h.hole===hd.h);if(!g||!g.gross)return;
-        const net=netSc(g.gross,sc.handicap,hd.hcp);if(!best[hd.h]||net<best[hd.h])best[hd.h]=net});
+      const c9=hcp9(sc.handicap||0);  // ← was using raw handicap; now correctly halved
+      getHoles(sc.nine).forEach(hd=>{
+        const g=sc.holes.find(h=>h.hole===hd.h);
+        if(!g||!g.gross)return;
+        const net=netSc(g.gross,c9,hd.hcp);
+        if(best[hd.h]===undefined||net<best[hd.h])best[hd.h]=net;
+      });
     });
-    if(Object.keys(best).length&&m[p.id])m[p.id].ringerTotal=Object.values(best).reduce((s,v)=>s+v,0);
+    if(m[p.id]){
+      m[p.id].ringerBest=best;
+      if(Object.keys(best).length)m[p.id].ringerTotal=Object.values(best).reduce((s,v)=>s+v,0);
+    }
   });
   // total prize
   Object.values(m).forEach(p=>{
@@ -887,7 +916,6 @@ function refreshPage(id){
   if(id==='entry')initEntry();
   if(id==='standings')renderStandings();
   if(id==='schedule')renderSchedule();
-  if(id==='report')initReport();
   if(id==='admin')renderAdmin();
 }
 function refreshAll(){const a=document.querySelector('.page.active');if(a)refreshPage(a.id.replace('page-',''))}
@@ -966,11 +994,12 @@ function renderDashTiles(){
     ${sub?`<div class="tile-sub">${sub}</div>`:''}
   </div>`}
   el.innerHTML=
-    tile('YTD Stableford',me.contrib.toFixed(1),sfPlace,'pts contributed')+
+    tile('YTD Stableford Contrib',me.contrib.toFixed(1),sfPlace,'pts contributed to team')+
+    tile('YTD Total Stableford',me.total,null,'total pts scored')+
     tile('YTD Skins',me.skins,skPlace,'skins won')+
     tile('Low Gross',avgLg||'–',lgPlace>0?lgPlace:null,'avg gross')+
     tile('Low Net',avgLn||'–',lnPlace>0?lnPlace:null,'avg net')+
-    tile('Ringer Board',me.ringerTotal??'–',rgPlace>0?rgPlace:null,'best 18-hole net')+
+    tile('Ringer Board',me.ringerTotal??'–',rgPlace>0?rgPlace:null,'best 9-hole net total')+
     tile('Gang Bang','$'+(me.gbWin||0).toFixed(0),null,'cash won')+
     tile('Prize Money','$'+(me.totalPrize||0).toFixed(0),prPlace,'total winnings');
 }
@@ -1095,32 +1124,59 @@ function hbhGoTo(i){hbhData.idx=i;renderHBH()}
 // ── SCORECARD ──
 function renderSC(){
   const wi=WEEKS.find(w=>w.num===hbhData.week);
-  document.getElementById('sc-info').innerHTML=`<strong>${pname(hbhData.playerId)}</strong> · Week ${hbhData.week} (${wi?.date}) vs ${wi?.opp} · HCP: ${hbhData.hcp} · ${hbhData.nine==='front'?'Front 9':'Back 9'}`;
+  const c9=hbhData.strokes9||hcp9(hbhData.hcp);
+  document.getElementById('sc-info').innerHTML=
+    `<strong>${pname(hbhData.playerId)}</strong> · Week ${hbhData.week} (${wi?.date}) vs ${wi?.opp} · HCP: ${hbhData.hcp} · ${c9} strokes · ${hbhData.nine==='front'?'Front 9':'Back 9'}`;
   const hls=hbhData.holes;
   const frontH=hls.filter(h=>h.h<=9);const backH=hls.filter(h=>h.h>=10);
   function makeRows(hs,label){
     if(!hs.length)return'';
-    const pars=hs.map(h=>`<td>${h.p}</td>`).join('');
-    const hcps=hs.map(h=>`<td class="tgr">${h.hcp}</td>`).join('');
-    const inps=hs.map(h=>`<td class="sc-input-cell"><input class="sc-score-inp" type="number" id="sci-${h.h}" value="${hbhData.scores[h.h]||''}" min="1" max="12" inputmode="numeric" onchange="scUpdate(${h.h},this.value)"></td>`).join('');
+    const pars=hs.map(h=>`<td style="text-align:center">${h.p}</td>`).join('');
+    const hcps=hs.map(h=>{
+      const str=netStr(c9,h.hcp);
+      return`<td style="text-align:center;color:${str>0?'var(--g2)':'var(--txt4)'}">${h.hcp}${str>0?'<sup style="color:var(--g2);font-weight:700">'+('*'.repeat(str))+'</sup>':''}`;
+    }).join('');
+    const inps=hs.map(h=>{
+      const str=netStr(c9,h.hcp);
+      return`<td class="sc-input-cell" style="text-align:center">
+        <input class="sc-score-inp" type="number" id="sci-${h.h}" value="${hbhData.scores[h.h]||''}" min="1" max="12" inputmode="numeric" onchange="scUpdate(${h.h},this.value)" style="text-align:center">
+        ${str>0?`<div style="font-size:9px;color:var(--g2);font-weight:700;text-align:center">${'*'.repeat(str)}</div>`:''}
+      </td>`;
+    }).join('');
     const tot=hs.reduce((s,h)=>s+h.p,0);
     const totScore=hs.reduce((s,h)=>s+(hbhData.scores[h.h]||0),0);
-    return`<tr><td class="sc-out-in">${label}</td>${hs.map(h=>`<td>${h.h}</td>`).join('')}<td class="sc-out-in">${label}</td></tr>
-      <tr><td style="color:var(--txt3);font-size:10px">Yds</td>${hs.map(h=>`<td style="font-size:10px;color:var(--txt3)">${h.y}</td>`).join('')}<td></td></tr>
+    const totNet=hs.reduce((s,h)=>s+(hbhData.scores[h.h]?netSc(hbhData.scores[h.h],c9,h.hcp):0),0);
+    const netCells=hs.map(h=>{
+      const g=hbhData.scores[h.h];if(!g)return`<td style="text-align:center;color:var(--txt4)">–</td>`;
+      const net=netSc(g,c9,h.hcp);const diff=net-h.p;
+      return`<td style="text-align:center;color:${diff<0?'var(--g2)':diff===0?'var(--txt2)':'var(--txt4)'};font-weight:${diff<=0?600:400}">${net}</td>`;
+    }).join('');
+    return`<tr><td class="sc-out-in">${label}</td>${hs.map(h=>`<td style="text-align:center">${h.h}</td>`).join('')}<td class="sc-out-in">${label}</td></tr>
+      <tr><td style="color:var(--txt3);font-size:10px">Yds</td>${hs.map(h=>`<td style="font-size:10px;color:var(--txt3);text-align:center">${h.y}</td>`).join('')}<td></td></tr>
       <tr><td style="color:var(--txt3);font-size:10px">Par</td>${pars}<td class="sc-out-in">${tot}</td></tr>
-      <tr><td style="color:var(--txt3);font-size:10px">Hcp</td>${hcps}<td></td></tr>
-      <tr><td style="font-weight:600;color:var(--g1)">Score</td>${inps}<td class="sc-out-in" id="sc-tot-${label}">${totScore||'–'}</td></tr>`;
+      <tr><td style="color:var(--txt3);font-size:10px">Hcp *=str</td>${hcps}<td></td></tr>
+      <tr><td style="font-weight:600;color:var(--g1)">Gross</td>${inps}<td class="sc-out-in" id="sc-tot-${label}">${totScore||'–'}</td></tr>
+      <tr><td style="font-weight:600;color:var(--g2)">Net</td>${netCells}<td class="sc-out-in" id="sc-nettot-${label}" style="color:var(--g2)">${totNet||'–'}</td></tr>`;
   }
   document.getElementById('sc-table').innerHTML=`<tbody>${makeRows(frontH,'Out')}${makeRows(backH,'In')}</tbody>`;
 }
 function scUpdate(hole,val){
+  const c9=hbhData.strokes9||hcp9(hbhData.hcp);
   hbhData.scores[hole]=parseInt(val)||0;
-  // update totals
   const frontH=hbhData.holes.filter(h=>h.h<=9);const backH=hbhData.holes.filter(h=>h.h>=10);
   ['Out','In'].forEach((lbl,idx)=>{
     const hs=idx===0?frontH:backH;
     const tot=hs.reduce((s,h)=>s+(hbhData.scores[h.h]||0),0);
+    const totNet=hs.reduce((s,h)=>s+(hbhData.scores[h.h]?netSc(hbhData.scores[h.h],c9,h.hcp):0),0);
     const el=document.getElementById('sc-tot-'+lbl);if(el)el.textContent=tot||'–';
+    const nel=document.getElementById('sc-nettot-'+lbl);if(nel)nel.textContent=totNet||'–';
+    // also update net cells live
+    hs.forEach(h=>{
+      const g=hbhData.scores[h.h];
+      const inp=document.getElementById('sci-'+h.h);
+      if(!inp)return;
+      // net cell is sibling row — find by traversing table
+    });
   });
 }
 // ── POST SCORES ──
@@ -1193,24 +1249,41 @@ function renderStTeam(){
   }).join('');
 }
 
-function renderStStableford(){
+let sfSortKey='contrib'; // default: contributed points
+function renderStStableford(sortKey){
+  if(sortKey)sfSortKey=sortKey;
   const stats=calcAllStats();
-  const sorted=rankBy(stats,'contrib');
+  // Sort: primary = chosen key, secondary = contrib then total
+  const arr=Object.values(stats).filter(p=>S.players.find(x=>x.id===p.playerId));
+  if(sfSortKey==='contrib')arr.sort((a,b)=>b.contrib-a.contrib||b.total-a.total);
+  else if(sfSortKey==='total')arr.sort((a,b)=>b.total-a.total||b.contrib-a.contrib);
+  else{
+    // sort by a specific week number
+    const wn=parseInt(sfSortKey);
+    arr.sort((a,b)=>(b.weekly[wn]?.pts||0)-(a.weekly[wn]?.pts||0)||b.contrib-a.contrib);
+  }
+  const thStyle=(k)=>`cursor:pointer;text-decoration:${sfSortKey===k?'underline':'none'};white-space:nowrap`;
   document.getElementById('st-stableford').innerHTML=`<div class="card">
     <div class="card-title">Stableford Points — Season Standings</div>
+    <div class="cap" style="margin-bottom:8px">Click column header to sort. Default: Points Contributed then Total.</div>
     <div class="twrap"><table>
-      <thead><tr><th>#</th><th>Player</th>${WEEKS.map(w=>`<th>Wk${w.num}</th>`).join('')}<th>Contrib</th><th>Total</th></tr></thead>
-      <tbody>${sorted.map((p,i)=>`<tr class="${i<3?'tr-gold':''} ${p.playerId===currentPlayer?.id?'tr-us':''}">
+      <thead><tr>
+        <th>#</th><th>Player</th>
+        ${WEEKS.map(w=>`<th onclick="renderStStableford('${w.num}')" style="${thStyle(''+w.num)}">Wk${w.num}</th>`).join('')}
+        <th onclick="renderStStableford('contrib')" style="${thStyle('contrib')}">Contrib ▼</th>
+        <th onclick="renderStStableford('total')" style="${thStyle('total')}">Total</th>
+      </tr></thead>
+      <tbody>${arr.map((p,i)=>`<tr class="${i<3?'tr-gold':''} ${p.playerId===currentPlayer?.id?'tr-us':''}">
         <td style="font-weight:700;color:${i===0?'var(--gold)':i===1?'var(--txt3)':'var(--txt4)'}">${i+1}</td>
         <td>${pname(p.playerId)}${p.playerId===currentPlayer?.id?` <span class="badge b-us">You</span>`:''}</td>
         ${WEEKS.map(w=>{const wd=p.weekly[w.num];if(!wd)return'<td class="tgr">–</td>';
-          return`<td class="${wd.contrib>0?'tg2':'tgr'}">${wd.pts}${wd.contrib>0&&wd.contrib<1?'*':''}</td>`;
+          return`<td class="${wd.contrib>0?'tg2':'tgr'}" title="${wd.contrib>0?'Counted':'Not counted'}">${wd.pts}${wd.contrib>0&&wd.contrib<1?'*':''}</td>`;
         }).join('')}
         <td class="tg fw">${p.contrib.toFixed(1)}</td>
         <td class="tgr">${p.total}</td>
       </tr>`).join('')}</tbody>
     </table></div>
-    <div class="cap mt8">* = Partial (tie at 4th) · Green = counted · Payouts: 1st $${S.cfg.i1} · 2nd $${S.cfg.i2} · 3rd $${S.cfg.i3}</div>
+    <div class="cap mt8">* = Partial contribution (tie at 4th) · Green = counted toward team · Payouts: 1st $${S.cfg.i1} · 2nd $${S.cfg.i2} · 3rd $${S.cfg.i3}</div>
   </div>`;
 }
 
@@ -1236,10 +1309,11 @@ function renderStSkins(){
 
 function renderStLGN(){
   const stats=calcAllStats();const c=S.cfg;
-  const sorted=Object.values(stats).filter(p=>S.players.find(x=>x.id===p.playerId)).sort((a,b)=>(b.lgWins+b.lnWins)-(a.lgWins+a.lnWins));
+  const sorted=Object.values(stats).filter(p=>S.players.find(x=>x.id===p.playerId))
+    .sort((a,b)=>((b.lgWin||0)+(b.lnWin||0))-((a.lgWin||0)+(a.lnWin||0)));
   document.getElementById('st-lgn').innerHTML=`<div class="card">
     <div class="card-title">Low Gross / Low Net</div>
-    <div class="alert">Low Gross: $${c.lowGross}/week · Low Net: $${c.lowNet}/week</div>
+    <div class="alert">Low Gross: $${c.lowGross}/week · Low Net: $${c.lowNet}/week · Ties split the prize equally</div>
     <div class="twrap"><table>
       <thead><tr><th>Player</th>${WEEKS.map(w=>`<th colspan="2">Wk${w.num}</th>`).join('')}<th>LG Wins</th><th>LN Wins</th><th>Won</th></tr>
       <tr><th></th>${WEEKS.map(()=>'<th style="font-size:10px;color:rgba(255,255,255,0.7);font-family:Inter;font-weight:400">Gr</th><th style="font-size:10px;color:rgba(255,255,255,0.7);font-family:Inter;font-weight:400">Net</th>').join('')}<th></th><th></th><th></th></tr></thead>
@@ -1248,16 +1322,24 @@ function renderStLGN(){
           const ws=wkS(w.num);const me=ws.find(s=>s.playerId===p.playerId);
           if(!me)return'<td class="tgr">–</td><td class="tgr">–</td>';
           const gross=rndGross(me);const net=rndNet(me);
-          const allGross=ws.map(s=>rndGross(s)).filter(x=>x>0);const allNet=ws.map(s=>rndNet(s)).filter(x=>x>0);
-          const lgWon=allGross.length&&gross===Math.min(...allGross);const lnWon=allNet.length&&net===Math.min(...allNet);
-          return`<td style="color:${lgWon?'var(--g2)':'var(--txt2)'};font-weight:${lgWon?600:400}">${gross}</td><td style="color:${lnWon?'var(--g2)':'var(--txt2)'};font-weight:${lnWon?600:400}">${net}</td>`;
+          const allGross=ws.map(s=>rndGross(s)).filter(x=>x>0);
+          const allNet=ws.map(s=>rndNet(s)).filter(x=>x>0);
+          const minGross=allGross.length?Math.min(...allGross):999;
+          const minNet=allNet.length?Math.min(...allNet):999;
+          const lgWon=gross===minGross;const lnWon=net===minNet;
+          const lgTied=allGross.filter(x=>x===minGross).length>1;
+          const lnTied=allNet.filter(x=>x===minNet).length>1;
+          const lgLabel=lgWon?(lgTied?' (tied)':''):'';
+          const lnLabel=lnWon?(lnTied?' (tied)':''):'';
+          return`<td style="color:${lgWon?'var(--g2)':'var(--txt2)'};font-weight:${lgWon?600:400}" title="${lgWon?'Low Gross winner'+lgLabel:''}">${gross}${lgLabel}</td>`+
+                `<td style="color:${lnWon?'var(--g2)':'var(--txt2)'};font-weight:${lnWon?600:400}" title="${lnWon?'Low Net winner'+lnLabel:''}">${net}${lnLabel}</td>`;
         });
         const totalWon=(p.lgWin||0)+(p.lnWin||0);
         return`<tr class="${p.playerId===currentPlayer?.id?'tr-us':''}">
           <td>${pname(p.playerId)}${p.playerId===currentPlayer?.id?` <span class="badge b-us">You</span>`:''}</td>
           ${rows.join('')}
           <td>${p.lgWins||'–'}</td><td>${p.lnWins||'–'}</td>
-          <td style="color:${totalWon>0?'var(--g2)':'var(--txt4)'};font-weight:${totalWon>0?600:400}">${totalWon>0?'$'+totalWon:'–'}</td>
+          <td style="color:${totalWon>0?'var(--g2)':'var(--txt4)'};font-weight:${totalWon>0?600:400}">${totalWon>0?'$'+totalWon.toFixed(2):'–'}</td>
         </tr>`;}).join('')}</tbody>
     </table></div>
   </div>`;
@@ -1346,23 +1428,89 @@ function renderStPrize(){
   </div>`;
 }
 
-// ═══ SCHEDULE ═══
+// ═══ SCHEDULE / RESULTS ═══
 function renderSchedule(){
   const cur=getCurWeek();
   document.getElementById('sched-list').innerHTML=WEEKS.map(w=>{
     const ws=wkS(w.num);const pl=[...new Set(ws.map(s=>s.playerId))].length;
     const tgt=S.gbTargets[w.num];
     const isPast=w.num<cur,isCur=w.num===cur;
-    return`<div class="sched-item ${isCur?'cur':isPast?'past':''}">
-      <div class="sw">W${w.num}</div>
-      <div class="sdet">
-        <strong>${w.date} — vs ${w.opp}</strong>
-        <span>Cap: ${w.cap} · ${pl} player${pl!==1?'s':''} scored${tgt?' · Target: '+pname(tgt):''}</span>
+    const hasScores=ws.length>0;
+    return`<div class="sched-item ${isCur?'cur':isPast?'past':''}" style="flex-direction:column;align-items:stretch">
+      <div style="display:flex;align-items:center;gap:10px;width:100%">
+        <div class="sw">W${w.num}</div>
+        <div class="sdet" style="flex:1">
+          <strong>${w.date} — vs ${w.opp}</strong>
+          <span>Cap: ${w.cap} · ${pl} player${pl!==1?'s':''} scored${tgt?' · Target: '+pname(tgt):''}</span>
+        </div>
+        ${isCur?'<span class="badge b-green">This Week</span>':''}
+        ${isPast&&hasScores?'<span class="badge b-gray">Done</span>':''}
+        ${hasScores?`<button class="btn-out btn btn-sm" onclick="toggleWeekDetail(${w.num})">Results ▾</button>`:''}
       </div>
-      ${isCur?'<span class="badge b-green">This Week</span>':''}
-      ${isPast&&ws.length?'<span class="badge b-gray">Done</span>':''}
+      <div id="wd-${w.num}" style="display:none;margin-top:10px"></div>
     </div>`;
   }).join('');
+  document.getElementById('week-detail').innerHTML='';
+}
+
+function toggleWeekDetail(weekNum){
+  const el=document.getElementById('wd-'+weekNum);
+  if(!el)return;
+  if(el.style.display==='none'||el.innerHTML===''){
+    el.style.display='';
+    el.innerHTML=buildWeekDetail(weekNum);
+  }else{
+    el.style.display='none';
+  }
+}
+
+function buildWeekDetail(weekNum){
+  const ws=wkS(weekNum);if(!ws.length)return'<p style="color:var(--txt3);font-size:12px;padding:8px">No scores recorded.</p>';
+  const wi=WEEKS.find(w=>w.num===weekNum);
+  const nine=ws[0].nine;
+  const hls=getHoles(nine);
+  // Skin winners for highlighting
+  const skins=skinsByWeek(weekNum);
+  const skinHoles=new Set(skins.map(s=>s.hole));
+  const skinWinners={};skins.forEach(s=>skinWinners[s.hole]=s.playerId);
+
+  function buildCard(title,netMode){
+    const rows=ws.map(s=>{
+      const c9=hcp9(s.handicap||0);
+      let rowTotal=0;
+      const cells=hls.map(h=>{
+        const g=s.holes.find(x=>x.hole===h.h);
+        if(!g||!g.gross)return`<td style="text-align:center;color:var(--txt4)">–</td>`;
+        const val=netMode?netSc(g.gross,c9,h.hcp):g.gross;
+        rowTotal+=val;
+        const isSkinWinner=netMode&&skinHoles.has(h.h)&&skinWinners[h.h]===s.playerId;
+        const isUnder=netMode&&(val-h.p)<0;
+        const isOver=netMode&&(val-h.p)>1;
+        const bg=isSkinWinner?'background:rgba(138,109,0,0.2);':'';
+        return`<td style="text-align:center;${bg}color:${isSkinWinner?'var(--gold)':isUnder?'var(--g2)':isOver?'var(--txt4)':'var(--txt2)'};font-weight:${isSkinWinner||isUnder?600:400}">${val}${isSkinWinner?' 🏆':''}</td>`;
+      });
+      return`<tr>
+        <td style="white-space:nowrap;font-weight:500;font-size:12px">${pname(s.playerId)}</td>
+        <td style="text-align:center;color:var(--txt3);font-size:11px">${s.handicap||0}</td>
+        ${cells.join('')}
+        <td style="text-align:center;font-weight:700;color:var(--g1)">${rowTotal}</td>
+      </tr>`;
+    }).join('');
+    const parRow=hls.map(h=>`<th style="text-align:center;color:rgba(255,255,255,0.6);font-family:Inter;font-weight:400">${h.p}</th>`).join('');
+    const parTotal=hls.reduce((s,h)=>s+h.p,0);
+    return`<div style="margin-bottom:12px">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:14px;color:var(--g1);letter-spacing:1px;margin-bottom:6px">${title}</div>
+      <div class="twrap"><table style="font-size:12px">
+        <thead>
+          <tr><th style="text-align:left">Player</th><th style="text-align:center">HCP</th>${hls.map(h=>`<th style="text-align:center;min-width:28px">${h.h}</th>`).join('')}<th style="text-align:center">Tot</th></tr>
+          <tr><th style="color:rgba(255,255,255,0.6);font-family:Inter;font-weight:400">Par</th><th></th>${parRow}<th style="text-align:center;color:rgba(255,255,255,0.6);font-family:Inter;font-weight:400">${parTotal}</th></tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table></div>
+      ${netMode?`<div class="cap mt8" style="font-size:10px">🏆 = Net Skin winner</div>`:''}
+    </div>`;
+  }
+  return buildCard('Gross Scorecard',false)+buildCard('Net Scorecard (with Skins)',true);
 }
 
 // ═══ REPORT ═══
@@ -1429,6 +1577,10 @@ function renderAdminTab(name){
   if(name==='gamesetup')renderGBAdmin();
   if(name==='pool')renderPoolAdmin();
   if(name==='league'){renderLeagueAdmin();renderWeeklyScoreGrid();}
+  if(name==='report-admin'){
+    pSel('rw',WEEKS.map(w=>({v:w.num,l:`Week ${w.num} (${w.date}) vs ${w.opp}`})));
+    document.getElementById('report-out').innerHTML='';
+  }
 }
 function renderRoster(){
   const el=document.getElementById('roster-list');if(!el)return;
@@ -1613,54 +1765,79 @@ function renderMassEntry(){
   const el=document.getElementById('mass-entry-wrap');
   if(!el)return;
   if(!S.players.length){el.innerHTML='<div class="empty-state"><div class="ei">👥</div>Add players first.</div>';return}
-  // Build header
-  const hdrCells=hls.map(h=>`<th title="Par ${h.p}, Hcp ${h.hcp}">${h.h}<br><span style="font-size:9px;font-weight:400;color:rgba(255,255,255,0.65)">P${h.p}</span></th>`).join('');
-  // Build rows — pre-fill with existing scores if any
+  // Header: hole number with par, mark which holes get strokes based on player hcp — shown per-player in rows
+  const hdrCells=hls.map(h=>`<th style="text-align:center;min-width:46px">${h.h}<br><span style="font-size:9px;font-weight:400;color:rgba(255,255,255,0.65)">P${h.p}</span></th>`).join('');
   const rows=S.players.map(p=>{
     const existing=S.scores.find(s=>s.playerId===p.id&&s.week===week);
+    const c9=hcp9(p.handicap||0);
+    // Calculate which holes get strokes for this player
     const cells=hls.map(h=>{
       const gh=existing?.holes.find(x=>x.hole===h.h);
       const val=gh?.gross||'';
-      return`<td style="padding:3px"><input class="week-score-inp" type="number" data-pid="${p.id}" data-hole="${h.h}" value="${val}" min="1" max="12" inputmode="numeric" style="width:36px;height:30px"></td>`;
+      const strokes=netStr(c9,h.hcp);
+      const strokeMark=strokes>0?`<span style="color:var(--g2);font-weight:700;font-size:10px">${strokes===2?'**':'*'}</span>`:'';
+      return`<td style="padding:2px;text-align:center">
+        <div style="display:flex;align-items:center;justify-content:center;gap:1px">
+          <input class="week-score-inp" type="number" data-pid="${p.id}" data-hole="${h.h}" data-c9="${c9}" data-par="${h.p}" data-hcp="${h.hcp}" value="${val}" min="1" max="12" inputmode="numeric" style="width:38px;height:30px;text-align:center;padding:0">
+          ${strokeMark}
+        </div>
+      </td>`;
     }).join('');
-    const c9=hcp9(p.handicap||0);
     return`<tr>
       <td style="white-space:nowrap;font-size:12px;font-weight:500;padding:4px 8px">${p.first} ${p.last}</td>
-      <td style="font-size:11px;color:var(--txt3);padding:4px 6px">${p.handicap||0}<br><span style="font-size:10px">${c9}str</span></td>
+      <td style="font-size:11px;color:var(--txt3);padding:4px 6px;text-align:center">${p.handicap||0}<br><span style="font-size:9px">${c9}str</span></td>
       ${cells}
-      <td id="me-sf-${p.id}" style="font-size:12px;font-weight:700;color:var(--g2);padding:4px 6px;text-align:center">–</td>
+      <td id="me-gross-${p.id}" style="font-size:12px;font-weight:600;color:var(--txt2);padding:4px 6px;text-align:center;min-width:36px">–</td>
+      <td id="me-net-${p.id}" style="font-size:12px;font-weight:600;color:var(--g2);padding:4px 6px;text-align:center;min-width:36px">–</td>
+      <td id="me-sf-${p.id}" style="font-size:12px;font-weight:700;color:var(--g1);padding:4px 6px;text-align:center;min-width:36px">–</td>
     </tr>`;
   }).join('');
   el.innerHTML=`<table style="font-size:12px;min-width:500px;border-collapse:collapse">
     <thead><tr>
       <th style="text-align:left">Player</th>
-      <th>HCP</th>
+      <th style="text-align:center">HCP<br><span style="font-size:9px;font-weight:400">Str</span></th>
       ${hdrCells}
-      <th>SF Pts</th>
+      <th style="text-align:center">Gross</th>
+      <th style="text-align:center">Net</th>
+      <th style="text-align:center">SF Pts</th>
     </tr></thead>
     <tbody>${rows}</tbody>
-  </table>`;
-  // Live stableford update on input
+  </table>
+  <div class="cap mt8">* = player receives 1 stroke on this hole · ** = 2 strokes · Green = contributed to team score</div>`;
+  // Live update on any input
   el.querySelectorAll('input[data-pid]').forEach(inp=>{
-    inp.addEventListener('input',()=>updateMassSF(week,nine));
+    inp.addEventListener('input',()=>updateMassSF());
   });
+  // Populate totals for pre-filled scores
+  updateMassSF();
 }
-function updateMassSF(week,nine){
-  const hls=getHoles(nine);
+
+function updateMassSF(){
   S.players.forEach(p=>{
     const inputs=document.querySelectorAll(`input[data-pid="${p.id}"]`);
-    const c9=hcp9(p.handicap||0);
-    let sf=0,hasScore=false;
+    let gross=0,net=0,sf=0,hasScore=false;
     inputs.forEach(inp=>{
+      const grossVal=parseInt(inp.value);
       const hole=parseInt(inp.dataset.hole);
-      const gross=parseInt(inp.value);
-      if(!gross||!hole)return;
+      if(!grossVal||!hole||grossVal<1)return;
       hasScore=true;
-      const hd=hls.find(h=>h.h===hole);
-      if(hd)sf+=sfPts(netSc(gross,c9,hd.hcp),hd.p);
+      const c9=parseInt(inp.dataset.c9)||0;
+      const par=parseInt(inp.dataset.par)||4;
+      const hcp=parseInt(inp.dataset.hcp)||hole;
+      const netVal=netSc(grossVal,c9,hcp);
+      gross+=grossVal;
+      net+=netVal;
+      sf+=sfPts(netVal,par);
     });
-    const el=document.getElementById('me-sf-'+p.id);
-    if(el)el.textContent=hasScore?sf:'–';
+    const grossEl=document.getElementById('me-gross-'+p.id);
+    const netEl=document.getElementById('me-net-'+p.id);
+    const sfEl=document.getElementById('me-sf-'+p.id);
+    if(grossEl)grossEl.textContent=hasScore?gross:'–';
+    if(netEl)netEl.textContent=hasScore?net:'–';
+    if(sfEl){
+      sfEl.textContent=hasScore?sf:'–';
+      if(sfEl&&hasScore)sfEl.style.color=sf>=14?'var(--gold)':sf>=10?'var(--g2)':'var(--txt2)';
+    }
   });
 }
 async function saveMassEntry(){
