@@ -1247,37 +1247,6 @@ function renderSC(){
   }
   document.getElementById('sc-table').innerHTML=`<tbody>${makeRows(frontH,'Out')}${makeRows(backH,'In')}</tbody>`;
 }
-  function makeRows(hs,label){
-    if(!hs.length)return'';
-    const pars=hs.map(h=>`<td style="text-align:center">${h.p}</td>`).join('');
-    const hcps=hs.map(h=>{
-      const str=netStr(c9,h.hcp);
-      return`<td style="text-align:center;color:${str>0?'var(--g2)':'var(--txt4)'}">${h.hcp}${str>0?'<sup style="color:var(--g2);font-weight:700">'+('*'.repeat(str))+'</sup>':''}`;
-    }).join('');
-    const inps=hs.map(h=>{
-      const str=netStr(c9,h.hcp);
-      return`<td class="sc-input-cell" style="text-align:center">
-        <input class="sc-score-inp" type="number" id="sci-${h.h}" value="${hbhData.scores[h.h]||''}" min="1" max="12" inputmode="numeric" onchange="scUpdate(${h.h},this.value)" style="text-align:center">
-        ${str>0?`<div style="font-size:9px;color:var(--g2);font-weight:700;text-align:center">${'*'.repeat(str)}</div>`:''}
-      </td>`;
-    }).join('');
-    const tot=hs.reduce((s,h)=>s+h.p,0);
-    const totScore=hs.reduce((s,h)=>s+(hbhData.scores[h.h]||0),0);
-    const totNet=hs.reduce((s,h)=>s+(hbhData.scores[h.h]?netSc(hbhData.scores[h.h],c9,h.hcp):0),0);
-    const netCells=hs.map(h=>{
-      const g=hbhData.scores[h.h];if(!g)return`<td style="text-align:center;color:var(--txt4)">–</td>`;
-      const net=netSc(g,c9,h.hcp);const diff=net-h.p;
-      return`<td style="text-align:center;color:${diff<0?'var(--g2)':diff===0?'var(--txt2)':'var(--txt4)'};font-weight:${diff<=0?600:400}">${net}</td>`;
-    }).join('');
-    return`<tr><td class="sc-out-in">${label}</td>${hs.map(h=>`<td style="text-align:center">${h.h}</td>`).join('')}<td class="sc-out-in">${label}</td></tr>
-      <tr><td style="color:var(--txt3);font-size:10px">Yds</td>${hs.map(h=>`<td style="font-size:10px;color:var(--txt3);text-align:center">${h.y}</td>`).join('')}<td></td></tr>
-      <tr><td style="color:var(--txt3);font-size:10px">Par</td>${pars}<td class="sc-out-in">${tot}</td></tr>
-      <tr><td style="color:var(--txt3);font-size:10px">Hcp *=str</td>${hcps}<td></td></tr>
-      <tr><td style="font-weight:600;color:var(--g1)">Gross</td>${inps}<td class="sc-out-in" id="sc-tot-${label}">${totScore||'–'}</td></tr>
-      <tr><td style="font-weight:600;color:var(--g2)">Net</td>${netCells}<td class="sc-out-in" id="sc-nettot-${label}" style="color:var(--g2)">${totNet||'–'}</td></tr>`;
-  }
-  document.getElementById('sc-table').innerHTML=`<tbody>${makeRows(frontH,'Out')}${makeRows(backH,'In')}</tbody>`;
-}
 function scUpdate(hole,val){
   const c9=hbhData.strokes9;
   hbhData.scores[hole]=parseInt(val)||0;
