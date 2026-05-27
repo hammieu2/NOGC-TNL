@@ -903,11 +903,11 @@ function calcAllStats(){
       }
     }
   }
-  // ringer — use hcp9 correctly
+  // ringer — use getStrokes9FromScore so saved strokes9 on the record takes priority
   S.players.forEach(p=>{
     const best={};
     S.scores.filter(s=>s.playerId===p.id).forEach(sc=>{
-      const c9=getPlayerStrokes9(p,sc.nine);  // use profile strokes
+      const c9=getStrokes9FromScore(sc);  // same as renderStRinger: checks saved strokes9 first
       getHoles(sc.nine).forEach(hd=>{
         const g=sc.holes.find(h=>h.hole===hd.h);
         if(!g||!g.gross)return;
