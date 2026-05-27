@@ -282,7 +282,7 @@ tbody tr:hover td{background:var(--surface2)}
   <button class="nav-enter-btn" onclick="navTo('entry',null);closeDrawer()">⛳ Enter Scores</button>
   <button class="nav-hamburger" onclick="toggleDrawer()" id="hamburger-btn">☰</button>
   <div class="nav-player">
-    <span id="conn-status" style="font-size:10px;color:rgba(255,255,255,0.5);margin-right:8px;display:none">● Connecting</span>
+    <span id="conn-status" style="display:none"></span>
     <button class="player-btn" onclick="openPlayerPicker()">
       <div class="avatar" id="nav-avatar">?</div>
       <span id="nav-player-name">Me</span>
@@ -661,11 +661,7 @@ const db=firebase.database();
 // ── Connection status indicator ──
 const connRef=db.ref('.info/connected');
 connRef.on('value',snap=>{
-  const el=document.getElementById('conn-status');
-  if(!el)return;
-  el.style.display='inline';
-  if(snap.val()===true){el.textContent='● Online';el.style.color='rgba(255,255,255,0.6)'}
-  else{el.textContent='● Offline';el.style.color='rgba(255,100,100,0.8)'}
+  // Connection status tracked internally but not shown in UI
 });
 
 // ── Firebase helpers ──
@@ -1023,7 +1019,7 @@ function renderDashPods(){
         <div class="pod-pts">${t.total}</div>
       </div>`).join(''):'<div style="padding:12px;color:var(--txt3);font-size:12px">No teams — add in Admin → League</div>'}
     </div>`).join('');
-  document.getElementById('dash-pods-cap').textContent='✓ = Playoff position (top 4 per pod) · Points shown are cumulative stableford';
+  document.getElementById('dash-pods-cap').textContent='Ranks 1–4 highlighted in green (playoff positions) · Points shown are cumulative stableford';
 }
 function renderDashTiles(){
   const el=document.getElementById('dash-tiles');
@@ -1036,6 +1032,7 @@ function renderDashTiles(){
   const stats=calcAllStats();const me=stats[currentPlayer.id];
   if(!me){el.innerHTML='<div style="grid-column:1/-1;padding:20px;color:var(--txt3);text-align:center">No scores recorded yet.</div>';return}
   const sfRank=rankBy(stats,'contrib');const sfPlace=sfRank.findIndex(x=>x.playerId===currentPlayer.id)+1;
+  const sfTotalRank=rankBy(stats,'total');const sfTotalPlace=sfTotalRank.findIndex(x=>x.playerId===currentPlayer.id)+1;
   const skRank=rankBy(stats,'skins');const skPlace=skRank.findIndex(x=>x.playerId===currentPlayer.id)+1;
   const lgRank=rankBy(stats,'lgTotal',true).filter(x=>(stats[x.playerId]?.lgTotal||0)>0);
   const lgPlace=lgRank.findIndex(x=>x.playerId===currentPlayer.id)+1;
@@ -1057,7 +1054,7 @@ function renderDashTiles(){
   </div>`}
   el.innerHTML=
     tile('YTD Stableford Contrib',me.contrib.toFixed(1),sfPlace,'pts contributed to team')+
-    tile('YTD Total Stableford',me.total,null,'total pts scored')+
+    tile('YTD Total Stableford',me.total,sfTotalPlace,'total pts scored')+
     tile('YTD Skins',me.skins,skPlace,'skins won')+
     tile('Low Gross',avgLg||'–',lgPlace>0?lgPlace:null,'avg gross')+
     tile('Low Net',avgLn||'–',lnPlace>0?lnPlace:null,'avg net')+
@@ -1356,7 +1353,7 @@ function renderStTeam(){
       <div class="twrap"><table>
         <thead><tr><th>#</th><th>Team</th>${WEEKS.map(w=>`<th>Wk${w.num}</th>`).join('')}<th>Total</th><th>Δ4th</th></tr></thead>
         <tbody>${teams.map((t,i)=>`<tr class="${i<4?'tr-playoff':''} ${t.ours?'tr-us':''}">
-          <td style="color:${i<4?'var(--g2)':'var(--txt3)'};font-weight:700">${i<4?'✓':i+1}</td>
+          <td style="color:${i<4?'var(--g2)':'var(--txt3)'};font-weight:700">${i+1}</td>
           <td>${t.ours?`<strong>${t.name}</strong> <span class="badge b-us">Us</span>`:t.name}</td>
           ${WEEKS.map((_,wi)=>`<td>${(t.wk||[])[wi]||'–'}</td>`).join('')}
           <td class="tg fw">${t.total}</td>
@@ -1427,40 +1424,74 @@ function renderStSkins(){
 
 function renderStLGN(){
   const stats=calcAllStats();const c=S.cfg;
-  const sorted=Object.values(stats).filter(p=>S.players.find(x=>x.id===p.playerId))
-    .sort((a,b)=>((b.lgWin||0)+(b.lnWin||0))-((a.lgWin||0)+(a.lnWin||0)));
-  document.getElementById('st-lgn').innerHTML=`<div class="card">
-    <div class="card-title">Low Gross / Low Net</div>
-    <div class="alert">Low Gross: $${c.lowGross}/week · Low Net: $${c.lowNet}/week · Ties split the prize equally</div>
-    <div class="twrap"><table>
-      <thead><tr><th>Player</th>${WEEKS.map(w=>`<th colspan="2">Wk${w.num}</th>`).join('')}<th>LG Wins</th><th>LN Wins</th><th>Won</th></tr>
-      <tr><th></th>${WEEKS.map(()=>'<th style="font-size:10px;color:rgba(255,255,255,0.7);font-family:Inter;font-weight:400">Gr</th><th style="font-size:10px;color:rgba(255,255,255,0.7);font-family:Inter;font-weight:400">Net</th>').join('')}<th></th><th></th><th></th></tr></thead>
-      <tbody>${sorted.map(p=>{
-        const rows=WEEKS.map(w=>{
-          const ws=wkS(w.num);const me=ws.find(s=>s.playerId===p.playerId);
-          if(!me)return'<td class="tgr">–</td><td class="tgr">–</td>';
-          const gross=rndGross(me);const net=rndNet(me);
-          const allGross=ws.map(s=>rndGross(s)).filter(x=>x>0);
-          const allNet=ws.map(s=>rndNet(s)).filter(x=>x>0);
-          const minGross=allGross.length?Math.min(...allGross):999;
-          const minNet=allNet.length?Math.min(...allNet):999;
-          const lgWon=gross===minGross;const lnWon=net===minNet;
-          const lgTied=allGross.filter(x=>x===minGross).length>1;
-          const lnTied=allNet.filter(x=>x===minNet).length>1;
-          const lgLabel=lgWon?(lgTied?' (tied)':''):'';
-          const lnLabel=lnWon?(lnTied?' (tied)':''):'';
-          return`<td style="color:${lgWon?'var(--g2)':'var(--txt2)'};font-weight:${lgWon?600:400}" title="${lgWon?'Low Gross winner'+lgLabel:''}">${gross}${lgLabel}</td>`+
-                `<td style="color:${lnWon?'var(--g2)':'var(--txt2)'};font-weight:${lnWon?600:400}" title="${lnWon?'Low Net winner'+lnLabel:''}">${net}${lnLabel}</td>`;
-        });
-        const totalWon=(p.lgWin||0)+(p.lnWin||0);
-        return`<tr class="${p.playerId===currentPlayer?.id?'tr-us':''}">
-          <td>${pname(p.playerId)}${p.playerId===currentPlayer?.id?` <span class="badge b-us">You</span>`:''}</td>
-          ${rows.join('')}
-          <td>${p.lgWins||'–'}</td><td>${p.lnWins||'–'}</td>
-          <td style="color:${totalWon>0?'var(--g2)':'var(--txt4)'};font-weight:${totalWon>0?600:400}">${totalWon>0?'$'+totalWon.toFixed(2):'–'}</td>
-        </tr>`;}).join('')}</tbody>
-    </table></div>
-  </div>`;
+  const players=S.players.filter(p=>stats[p.id]);
+
+  // Build per-player weekly gross and net arrays
+  const playerData=players.map(p=>{
+    const st=stats[p.id];
+    const grossScores=[],netScores=[];
+    for(const w of WEEKS){
+      const ws=wkS(w.num);const me=ws.find(s=>s.playerId===p.id);
+      if(!me)continue;
+      const g=rndGross(me),n=rndNet(me);
+      if(g>0)grossScores.push({week:w.num,v:g});
+      if(n>0)netScores.push({week:w.num,v:n});
+    }
+    const avgGross=grossScores.length?grossScores.reduce((s,x)=>s+x.v,0)/grossScores.length:null;
+    const avgNet=netScores.length?netScores.reduce((s,x)=>s+x.v,0)/netScores.length:null;
+    return{playerId:p.id,grossScores,netScores,avgGross,avgNet,
+      lgWins:st.lgWins||0,lnWins:st.lnWins||0,lgWin:st.lgWin||0,lnWin:st.lnWin||0};
+  }).filter(p=>p.avgGross!==null||p.avgNet!==null);
+
+  // Sort by avg gross ascending (lower = better), players with no score at bottom
+  const lgSorted=[...playerData].filter(p=>p.avgGross!==null).sort((a,b)=>a.avgGross-b.avgGross);
+  const lnSorted=[...playerData].filter(p=>p.avgNet!==null).sort((a,b)=>a.avgNet-b.avgNet);
+
+  function makeTable(rows,title,mode){
+    // mode='gross' or 'net'
+    const isGross=mode==='gross';
+    const prize=isGross?(c.lowGross||10):(c.lowNet||10);
+    const rowsHtml=rows.map((p,i)=>{
+      const weekCells=WEEKS.map(w=>{
+        const entry=isGross?p.grossScores.find(x=>x.week===w.num):p.netScores.find(x=>x.week===w.num);
+        if(!entry)return'<td class="tgr">–</td>';
+        // Check if this was a winner that week
+        const ws=wkS(w.num);
+        let won=false;
+        if(ws.length){
+          const all=ws.map(s=>isGross?rndGross(s):rndNet(s)).filter(x=>x>0);
+          if(all.length)won=entry.v===Math.min(...all);
+        }
+        return`<td style="color:${won?'var(--g2)':'var(--txt2)'};font-weight:${won?700:400}">${entry.v}${won?'*':''}</td>`;
+      }).join('');
+      const avg=isGross?p.avgGross:p.avgNet;
+      const wins=isGross?p.lgWins:p.lnWins;
+      const winnings=isGross?p.lgWin:p.lnWin;
+      return`<tr class="${i===0?'tr-gold':''} ${p.playerId===currentPlayer?.id?'tr-us':''}">
+        <td style="font-weight:700;color:${i===0?'var(--gold)':i===1?'var(--txt3)':i===2?'var(--txt4)':'var(--txt4)'}">${i+1}</td>
+        <td>${pname(p.playerId)}${p.playerId===currentPlayer?.id?` <span class="badge b-us">You</span>`:''}</td>
+        ${weekCells}
+        <td class="fw" style="color:var(--g2)">${avg!==null?avg.toFixed(1):'–'}</td>
+        <td>${wins||'–'}</td>
+        <td style="color:${winnings>0?'var(--g2)':'var(--txt4)'};font-weight:${winnings>0?600:400}">${winnings>0?'$'+winnings.toFixed(2):'–'}</td>
+      </tr>`;
+    }).join('');
+    return`<div class="card" style="margin-bottom:12px">
+      <div class="card-title">${title}</div>
+      <div class="alert">$${prize}/week · ties split equally · * = winner that week · sorted by season avg (low to high)</div>
+      <div class="twrap"><table>
+        <thead><tr>
+          <th>#</th><th>Player</th>${WEEKS.map(w=>`<th>Wk${w.num}</th>`).join('')}
+          <th>Avg</th><th>Wins</th><th>Won</th>
+        </tr></thead>
+        <tbody>${rowsHtml}</tbody>
+      </table></div>
+    </div>`;
+  }
+
+  document.getElementById('st-lgn').innerHTML=
+    makeTable(lgSorted,'Low Gross','gross')+
+    makeTable(lnSorted,'Low Net','net');
 }
 
 function renderStRinger(){
@@ -1480,11 +1511,12 @@ function renderStRinger(){
     <div class="alert">Best net score per hole. Payouts: 1st $${c.r1} · 2nd $${c.r2} · 3rd $${c.r3}</div>
     <div class="twrap"><table style="font-size:11px">
       <thead>
-        <tr><th>Player</th>${hn.map(h=>`<th>${h}</th>`).join('')}<th>Total</th></tr>
-        <tr><th style="color:rgba(255,255,255,0.6);font-family:Inter;font-weight:400">Par</th>${hn.map(h=>`<th style="color:rgba(255,255,255,0.6);font-family:Inter;font-weight:400">${pars[h]}</th>`).join('')}<th style="color:rgba(255,255,255,0.6);font-family:Inter;font-weight:400">${getAllHoles().reduce((s,h)=>s+h.p,0)}</th></tr>
+        <tr><th>#</th><th>Player</th>${hn.map(h=>`<th>${h}</th>`).join('')}<th>Total</th></tr>
+        <tr><th></th><th style="color:rgba(255,255,255,0.6);font-family:Inter;font-weight:400">Par</th>${hn.map(h=>`<th style="color:rgba(255,255,255,0.6);font-family:Inter;font-weight:400">${pars[h]}</th>`).join('')}<th style="color:rgba(255,255,255,0.6);font-family:Inter;font-weight:400">${getAllHoles().reduce((s,h)=>s+h.p,0)}</th></tr>
       </thead>
       <tbody>${data.map((r,i)=>`<tr class="${i<3?'tr-gold':''} ${r.playerId===currentPlayer?.id?'tr-us':''}">
-        <td style="font-weight:500">${i===0?'1st ':i===1?'2nd ':i===2?'3rd ':''} ${pname(r.playerId)}${r.playerId===currentPlayer?.id?` <span class="badge b-us">You</span>`:''}</td>
+        <td style="font-weight:700;color:${i===0?'var(--gold)':i===1?'var(--txt3)':i===2?'var(--txt4)':'var(--txt4)'}">${i+1}</td>
+        <td style="font-weight:500">${pname(r.playerId)}${r.playerId===currentPlayer?.id?` <span class="badge b-us">You</span>`:''}</td>
         ${hn.map(h=>{const v=r.best[h];if(!v)return'<td class="tgr">–</td>';const d=v-pars[h];
           return`<td style="color:${d<=-1?'var(--gold)':d===0?'var(--g2)':'var(--txt2)'};font-weight:${d<=0?600:400}">${v}</td>`;
         }).join('')}
@@ -1508,12 +1540,20 @@ function renderStGB(){
     weekRes[w.num]={tid,results,active:true};
     Object.entries(results).forEach(([pid,r])=>{if(r.winnings)playerTotals[pid]=(playerTotals[pid]||0)+r.winnings});
   }
+  // Sort players: logged-in player first, then alphabetical by last name
+  const gbPlayers=[...S.players].sort((a,b)=>{
+    const aIsMe=a.id===currentPlayer?.id;
+    const bIsMe=b.id===currentPlayer?.id;
+    if(aIsMe&&!bIsMe)return -1;
+    if(!aIsMe&&bIsMe)return 1;
+    return (a.last||a.first).localeCompare(b.last||b.first);
+  });
   document.getElementById('st-gb').innerHTML=`<div class="card">
     <div class="card-title">Gang Bang</div>
-    <div class="alert">$${gbW}/wk · Target wins all if unbeaten · Beaters split $${gbW} · $${gbW*7} total season</div>
+    <div class="alert">$${gbW}/wk · Target wins all if unbeaten · Beaters split $${gbW} · $${gbW*7} total season · Sorted A–Z (you always first)</div>
     <div class="twrap"><table>
       <thead><tr><th>Player</th>${WEEKS.map(w=>`<th>Wk${w.num}<br><span style="font-size:9px;font-weight:400;font-family:Inter">${w.date}</span></th>`).join('')}<th>Total</th></tr></thead>
-      <tbody>${S.players.map(p=>{
+      <tbody>${gbPlayers.map(p=>{
         const cells=WEEKS.map(w=>{
           const wr=weekRes[w.num];const isTgt=wr?.tid===p.id;const res=wr?.results?.[p.id];
           if(!wr?.active)return'<td class="tgr">–</td>';
