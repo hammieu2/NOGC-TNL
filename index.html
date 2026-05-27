@@ -329,15 +329,16 @@ tbody tr:hover td{background:var(--surface2)}
     <div class="fg"><label>Week</label><select id="ew"></select></div>
     <div class="fg"><label>Player</label><select id="ep" onchange="onPlayerChange()"></select></div>
     <div class="form2">
-      <div class="fg"><label>Handicap (18-hole)</label><input type="number" id="ehcp" min="0" max="54" placeholder="0" oninput="updateStrokesDisplay()"></div>
-      <div class="fg"><label>Strokes Received (9-hole)</label>
-        <input type="number" id="estrokes" min="0" max="27" placeholder="auto" style="background:var(--surface2);color:var(--txt3)">
-        <div style="font-size:10px;color:var(--txt3);margin-top:3px" id="strokes-hint">Auto-calculated from handicap ÷ 2</div>
+      <div class="fg"><label>Handicap (18-hole)</label><input type="number" id="ehcp" min="0" max="54" placeholder="0"></div>
+      <div class="fg">
+        <label>Strokes Received This 9</label>
+        <input type="number" id="estrokes" min="0" max="18" placeholder="from profile">
+        <div style="font-size:10px;color:var(--txt3);margin-top:2px" id="strokes-hint">Pulled from player profile · edit to override</div>
       </div>
     </div>
     <div class="form2">
       <div class="fg"><label>Playing</label>
-        <select id="enine" onchange="updateStartHoles()">
+        <select id="enine" onchange="updateStartHoles();onPlayerChange()">
           <option value="front">Front 9 (1–9)</option>
           <option value="back">Back 9 (10–18)</option>
         </select>
@@ -465,8 +466,20 @@ tbody tr:hover td{background:var(--surface2)}
         <div class="fg"><label>Last Name</label><input type="text" id="plast"></div>
       </div>
       <div class="form2">
-        <div class="fg"><label>Handicap</label><input type="number" id="phcp" min="0" max="54"></div>
+        <div class="fg"><label>Handicap (18-hole)</label><input type="number" id="phcp" min="0" max="54"></div>
         <div class="fg"><label>Email</label><input type="email" id="pemail"></div>
+      </div>
+      <div class="form2">
+        <div class="fg">
+          <label>Strokes — Front 9</label>
+          <input type="number" id="pstrokesF" min="0" max="18" placeholder="e.g. 8">
+          <div style="font-size:10px;color:var(--txt3);margin-top:2px">Actual strokes received on front 9</div>
+        </div>
+        <div class="fg">
+          <label>Strokes — Back 9</label>
+          <input type="number" id="pstrokesB" min="0" max="18" placeholder="e.g. 7">
+          <div style="font-size:10px;color:var(--txt3);margin-top:2px">Actual strokes received on back 9</div>
+        </div>
       </div>
       <div class="btn-row">
         <button class="btn" onclick="savePlayer()">Save Player</button>
@@ -753,9 +766,23 @@ function netStr(courseHcp9, holeHcp){
 }
 function netSc(gross,courseHcp9,holeHcp){return gross-netStr(courseHcp9,holeHcp)}
 function sfPts(net,par){const d=net-par;return d<=-2?4:d===-1?3:d===0?2:d===1?1:0}
-function hcp9(fullHcp){return Math.round(fullHcp/2)} // 18-hole hcp → 9-hole strokes
+function hcp9(fullHcp){return Math.round(fullHcp/2)} // fallback only
+// Primary stroke lookup: uses player profile strokesF/strokesB if set; else hcp9
+function getPlayerStrokes9(player, nine){
+  if(!player)return 0;
+  if(nine==='front'&&player.strokesF!=null)return parseInt(player.strokesF)||0;
+  if(nine==='back'&&player.strokesB!=null)return parseInt(player.strokesB)||0;
+  return hcp9(player.handicap||0);
+}
+// For stored scores: first check if strokes9 was saved on the record,
+// then try player profile, then fall back to hcp9
+function getStrokes9FromScore(sc){
+  if(sc.strokes9!=null)return parseInt(sc.strokes9)||0;
+  const p=S.players.find(x=>x.id===sc.playerId);
+  return p?getPlayerStrokes9(p,sc.nine):hcp9(sc.handicap||0);
+}
 function rndSF(s){
-  const c9=hcp9(s.handicap);
+  const c9=getStrokes9FromScore(s);
   return getHoles(s.nine).reduce((t,h)=>{
     const g=s.holes.find(x=>x.hole===h.h);
     return g&&g.gross?t+sfPts(netSc(g.gross,c9,h.hcp),h.p):t;
@@ -763,7 +790,7 @@ function rndSF(s){
 }
 function rndGross(s){return s.holes.reduce((t,h)=>t+(h.gross||0),0)}
 function rndNet(s){
-  const c9=hcp9(s.handicap);
+  const c9=getStrokes9FromScore(s);
   return getHoles(s.nine).reduce((t,h)=>{
     const g=s.holes.find(x=>x.hole===h.h);
     return g&&g.gross?t+netSc(g.gross,c9,h.hcp):t;
@@ -849,7 +876,7 @@ function calcAllStats(){
   S.players.forEach(p=>{
     const best={};
     S.scores.filter(s=>s.playerId===p.id).forEach(sc=>{
-      const c9=hcp9(sc.handicap||0);  // ← was using raw handicap; now correctly halved
+      const c9=getPlayerStrokes9(p,sc.nine);  // use profile strokes
       getHoles(sc.nine).forEach(hd=>{
         const g=sc.holes.find(h=>h.hole===hd.h);
         if(!g||!g.gross)return;
@@ -1013,29 +1040,34 @@ function initEntry(){
     document.getElementById('ep').value=currentPlayer.id;
     document.getElementById('ehcp').value=currentPlayer.handicap||0;
   }
-  updateStrokesDisplay();
+  loadProfileStrokes();
 }
-function updateStrokesDisplay(){
-  const hcp=parseFloat(document.getElementById('ehcp')?.value)||0;
-  const auto=hcp9(hcp);
-  const el=document.getElementById('strokes-hint');
-  if(el)el.textContent=`Auto: ${hcp} ÷ 2 = ${auto} strokes for 9 holes`;
-  // Only auto-fill if user hasn't typed in strokes manually
-  const si=document.getElementById('estrokes');
-  if(si&&si.dataset.manual!=='1')si.value='';
+function loadProfileStrokes(){
+  const pid=document.getElementById('ep')?.value;
+  const nine=document.getElementById('enine')?.value||'front';
+  const p=S.players.find(x=>x.id===pid);
+  const strEl=document.getElementById('estrokes');
+  const hint=document.getElementById('strokes-hint');
+  if(!strEl)return;
+  if(p){
+    const profStr=nine==='front'?p.strokesF:p.strokesB;
+    if(profStr!=null){
+      strEl.value=profStr;
+      if(hint)hint.textContent=`From profile (${nine} 9) · edit to override`;
+    }else{
+      const auto=hcp9(p.handicap||0);
+      strEl.value=auto;
+      if(hint)hint.textContent=`Auto: HCP ${p.handicap||0} ÷ 2 = ${auto} · no profile strokes set · edit to override`;
+    }
+  }
 }
+function updateStrokesDisplay(){loadProfileStrokes()} // alias kept for compatibility
 function onPlayerChange(){
   const pid=document.getElementById('ep').value;
   const p=S.players.find(x=>x.id===pid);
-  if(p){
-    document.getElementById('ehcp').value=p.handicap||0;
-    const si=document.getElementById('estrokes');
-    if(si){si.value='';si.dataset.manual='0'}
-    updateStrokesDisplay();
-  }
+  if(p)document.getElementById('ehcp').value=p.handicap||0;
+  loadProfileStrokes();
 }
-// Mark strokes as manually set
-document.addEventListener('change',e=>{if(e.target.id==='estrokes')e.target.dataset.manual='1'});
 function updateStartHoles(){
   const nine=document.getElementById('enine')?.value||'front';
   pSel('estart',getHoles(nine).map(h=>({v:h.h,l:`Hole ${h.h}`})));
@@ -1051,17 +1083,25 @@ function startEntry(){
   const nine=document.getElementById('enine').value;
   const startHole=parseInt(document.getElementById('estart').value);
   if(!pid){alert('Please select a player');return}
-  // Allow override of strokes; else auto-calculate
+
+  // Strokes: use field value (pre-populated from profile, editable)
   const strokesEl=document.getElementById('estrokes');
   const strokes9=strokesEl&&strokesEl.value!==''?parseInt(strokesEl.value):hcp9(hcp);
-  const existing=wkS(parseInt(document.getElementById('ew').value));
+
+  const week=parseInt(document.getElementById('ew').value);
+  const existing=wkS(week);
   const ep=[...new Set(existing.map(s=>s.playerId))];
   if(!ep.includes(pid)&&ep.length>=8){alert('Week already has 8 players. Max 8 per week.');return}
-  const hls=getHoles(nine);const si=hls.findIndex(h=>h.h===startHole);
-  const ordered=[...hls.slice(si),...hls.slice(0,si)];
-  // Store both full hcp and effective 9-hole strokes
-  hbhData={holes:ordered,idx:0,scores:{},nine,startHole,hcp,strokes9,playerId:pid,week:parseInt(document.getElementById('ew').value)};
-  ordered.forEach(h=>{hbhData.scores[h.h]=h.p});
+
+  const hls=getHoles(nine);
+  // Build ordered holes starting from startHole, wrapping around
+  const si=hls.findIndex(h=>h.h===startHole);
+  const ordered=si>=0?[...hls.slice(si),...hls.slice(0,si)]:hls;
+
+  hbhData={holes:ordered,idx:0,scores:{},nine,startHole,hcp,strokes9,playerId:pid,week};
+  // Init scores to par (blank, not par — so user must tap)
+  ordered.forEach(h=>{hbhData.scores[h.h]=null;});
+
   document.getElementById('entry-setup-card').style.display='none';
   document.getElementById('entry-done').style.display='none';
   if(entryMode==='hbh'){
@@ -1075,60 +1115,138 @@ function startEntry(){
   }
 }
 // ── HBH ──
-// Stableford label lookup (net score vs par)
-function sfLabel(sfPts){
-  return['Double Bogey+','Bogey','Par','Birdie','Eagle+'][Math.min(4,Math.max(0,sfPts+0))];
-  // sfPts: 0=DblBogey+, 1=Bogey, 2=Par, 3=Birdie, 4=Eagle
-}
 const SF_COLORS=['var(--txt4)','var(--txt3)','var(--g2)','var(--gold)','var(--gold)'];
 const SF_LABELS=['Double Bogey+ — 0 pts','Bogey — 1 pt','Par — 2 pts','Birdie — 3 pts','Eagle — 4 pts'];
+
 function renderHBH(){
   const h=hbhData.holes[hbhData.idx];
-  const score=hbhData.scores[h.h]||h.p;
-  const c9=hbhData.strokes9||hcp9(hbhData.hcp);
-  const net=netSc(score,c9,h.hcp);
-  const sf=sfPts(net,h.p);
-  const diff=score-h.p;
-  const netDiff=net-h.p;
+  const score=hbhData.scores[h.h];           // null = not yet entered
+  const c9=hbhData.strokes9;
   const strokesOnHole=netStr(c9,h.hcp);
-  document.getElementById('hbh-dots').innerHTML=hbhData.holes.map((hh,i)=>`<div class="hbh-dot ${i<hbhData.idx?'done':i===hbhData.idx?'current':''}" onclick="hbhGoTo(${i})"></div>`).join('');
-  document.getElementById('hbh-hole-num').textContent='Hole '+h.h;
-  document.getElementById('hbh-hole-info').textContent=`Par ${h.p} · ${h.y} yds · Hcp ${h.hcp}`;
+  const totalHoles=hbhData.holes.length;
+  const enteredCount=hbhData.holes.filter(hh=>hbhData.scores[hh.h]!=null&&hbhData.scores[hh.h]>0).length;
+  const allEntered=enteredCount===totalHoles;
+
+  // Dots
+  document.getElementById('hbh-dots').innerHTML=hbhData.holes.map((hh,i)=>{
+    const entered=hbhData.scores[hh.h]!=null&&hbhData.scores[hh.h]>0;
+    return`<div class="hbh-dot ${entered?'done':i===hbhData.idx?'current':''}" onclick="hbhGoTo(${i})" title="Hole ${hh.h}"></div>`;
+  }).join('');
+
+  // Hole info — show position in round (e.g. "Hole 7 · 3 of 9")
+  const posInRound=hbhData.idx+1;
+  document.getElementById('hbh-hole-num').textContent=`Hole ${h.h}`;
+  document.getElementById('hbh-hole-info').textContent=
+    `Par ${h.p} · ${h.y} yds · Hcp ${h.hcp} · ${posInRound} of ${totalHoles}`;
+
   // Strokes badge
   const sb=document.getElementById('hbh-strokes-badge');
   if(sb){
-    if(strokesOnHole>0){sb.textContent=strokesOnHole===2?'+2 strokes this hole':'+1 stroke this hole';sb.style.display='inline-block'}
-    else{sb.style.display='none'}
+    if(strokesOnHole>0){
+      sb.textContent=strokesOnHole===2?'+2 strokes this hole':'+1 stroke this hole';
+      sb.style.display='inline-block';
+    }else{sb.style.display='none'}
   }
-  const sd=document.getElementById('hbh-score');sd.textContent=score;
-  sd.className='hbh-score'+(netDiff<-1?' under':netDiff===0||netDiff===-1?' at-par':' over');
-  // To par line shows GROSS diff
+
+  // Score display
+  const sd=document.getElementById('hbh-score');
+  if(score===null||score===0){
+    sd.textContent='–';
+    sd.className='hbh-score over';
+  }else{
+    const net=netSc(score,c9,h.hcp);
+    const netDiff=net-h.p;
+    sd.textContent=score;
+    sd.className='hbh-score'+(netDiff<=-1?' under':netDiff===0?' at-par':' over');
+  }
+
+  // To par / Stableford
   const tp=document.getElementById('hbh-topar');
-  tp.textContent=diff===0?'E (gross par)':diff>0?'+'+diff+' gross':diff+' gross';
-  tp.className='hbh-topar'+(diff<0?' u':diff===0?' e':' o');
-  // Stableford badge
   const sfb=document.getElementById('hbh-sf-badge');
-  if(sfb){
-    sfb.textContent=SF_LABELS[Math.min(4,Math.max(0,sf))];
-    sfb.style.color=SF_COLORS[Math.min(4,Math.max(0,sf))];
+  if(score===null||score===0){
+    if(tp){tp.textContent='Tap + to enter score';tp.className='hbh-topar'}
+    if(sfb){sfb.textContent='';sfb.style.color=''}
+  }else{
+    const diff=score-h.p;
+    const net=netSc(score,c9,h.hcp);
+    const sf=sfPts(net,h.p);
+    if(tp){
+      tp.textContent=diff===0?'E (gross par)':diff>0?'+'+diff+' gross':diff+' gross';
+      tp.className='hbh-topar'+(diff<0?' u':diff===0?' e':' o');
+    }
+    if(sfb){
+      sfb.textContent=SF_LABELS[Math.min(4,Math.max(0,sf))];
+      sfb.style.color=SF_COLORS[Math.min(4,Math.max(0,sf))];
+    }
+  }
+
+  // Post button — grayed/disabled until all 9 holes entered
+  const postBtn=document.querySelector('.hbh-post');
+  if(postBtn){
+    if(allEntered){
+      postBtn.disabled=false;
+      postBtn.style.opacity='1';
+      postBtn.textContent=`Post Score ✓`;
+    }else{
+      postBtn.disabled=true;
+      postBtn.style.opacity='0.4';
+      postBtn.textContent=`Post Score (${enteredCount}/${totalHoles} holes)`;
+    }
   }
 }
+
 function adjScore(d){
   const h=hbhData.holes[hbhData.idx];
-  hbhData.scores[h.h]=Math.max(1,Math.min(12,(hbhData.scores[h.h]||h.p)+d));
+  const cur=hbhData.scores[h.h]||h.p; // start at par if blank
+  hbhData.scores[h.h]=Math.max(1,Math.min(12,cur+d));
   renderHBH();
 }
-function hbhNext(){if(hbhData.idx<hbhData.holes.length-1){hbhData.idx++;renderHBH()}}
+function hbhNext(){
+  if(hbhData.idx<hbhData.holes.length-1){hbhData.idx++;renderHBH();}
+  // If on last hole, do nothing (Post button handles submission)
+}
 function hbhPrev(){if(hbhData.idx>0){hbhData.idx--;renderHBH()}}
 function hbhGoTo(i){hbhData.idx=i;renderHBH()}
 // ── SCORECARD ──
 function renderSC(){
   const wi=WEEKS.find(w=>w.num===hbhData.week);
-  const c9=hbhData.strokes9||hcp9(hbhData.hcp);
+  const c9=hbhData.strokes9;
   document.getElementById('sc-info').innerHTML=
-    `<strong>${pname(hbhData.playerId)}</strong> · Week ${hbhData.week} (${wi?.date}) vs ${wi?.opp} · HCP: ${hbhData.hcp} · ${c9} strokes · ${hbhData.nine==='front'?'Front 9':'Back 9'}`;
-  const hls=hbhData.holes;
+    `<strong>${pname(hbhData.playerId)}</strong> · Week ${hbhData.week} (${wi?.date}) vs ${wi?.opp} · HCP: ${hbhData.hcp} · <strong>${c9} strokes</strong> · ${hbhData.nine==='front'?'Front 9':'Back 9'} · Starting hole ${hbhData.startHole}`;
+  const hls=hbhData.holes; // already ordered by starting hole
   const frontH=hls.filter(h=>h.h<=9);const backH=hls.filter(h=>h.h>=10);
+  function makeRows(hs,label){
+    if(!hs.length)return'';
+    const pars=hs.map(h=>`<td style="text-align:center">${h.p}</td>`).join('');
+    const hcps=hs.map(h=>{
+      const str=netStr(c9,h.hcp);
+      return`<td style="text-align:center;color:${str>0?'var(--g2)':'var(--txt4)'}">${h.hcp}${str>0?'<sup style="color:var(--g2);font-weight:700">'+('*'.repeat(str))+'</sup>':''}`;
+    }).join('');
+    const inps=hs.map(h=>{
+      const str=netStr(c9,h.hcp);
+      const val=hbhData.scores[h.h]||'';
+      return`<td class="sc-input-cell" style="text-align:center">
+        <input class="sc-score-inp" type="number" id="sci-${h.h}" value="${val}" min="1" max="12" inputmode="numeric" onchange="scUpdate(${h.h},this.value)" style="text-align:center">
+        ${str>0?`<div style="font-size:9px;color:var(--g2);font-weight:700;text-align:center">${'*'.repeat(str)}</div>`:''}
+      </td>`;
+    }).join('');
+    const tot=hs.reduce((s,h)=>s+h.p,0);
+    const totScore=hs.reduce((s,h)=>s+(hbhData.scores[h.h]||0),0);
+    const totNet=hs.reduce((s,h)=>s+(hbhData.scores[h.h]?netSc(hbhData.scores[h.h],c9,h.hcp):0),0);
+    const netCells=hs.map(h=>{
+      const g=hbhData.scores[h.h];if(!g)return`<td style="text-align:center;color:var(--txt4)">–</td>`;
+      const net=netSc(g,c9,h.hcp);const diff=net-h.p;
+      return`<td style="text-align:center;color:${diff<0?'var(--g2)':diff===0?'var(--txt2)':'var(--txt4)'};font-weight:${diff<=0?600:400}">${net}</td>`;
+    }).join('');
+    return`<tr><td class="sc-out-in">${label}</td>${hs.map(h=>`<td style="text-align:center">${h.h}</td>`).join('')}<td class="sc-out-in">${label}</td></tr>
+      <tr><td style="color:var(--txt3);font-size:10px">Yds</td>${hs.map(h=>`<td style="font-size:10px;color:var(--txt3);text-align:center">${h.y}</td>`).join('')}<td></td></tr>
+      <tr><td style="color:var(--txt3);font-size:10px">Par</td>${pars}<td class="sc-out-in">${tot}</td></tr>
+      <tr><td style="color:var(--txt3);font-size:10px">Hcp *=str</td>${hcps}<td></td></tr>
+      <tr><td style="font-weight:600;color:var(--g1)">Gross</td>${inps}<td class="sc-out-in" id="sc-tot-${label}">${totScore||'–'}</td></tr>
+      <tr><td style="font-weight:600;color:var(--g2)">Net</td>${netCells}<td class="sc-out-in" id="sc-nettot-${label}" style="color:var(--g2)">${totNet||'–'}</td></tr>`;
+  }
+  document.getElementById('sc-table').innerHTML=`<tbody>${makeRows(frontH,'Out')}${makeRows(backH,'In')}</tbody>`;
+}
   function makeRows(hs,label){
     if(!hs.length)return'';
     const pars=hs.map(h=>`<td style="text-align:center">${h.p}</td>`).join('');
@@ -1161,7 +1279,7 @@ function renderSC(){
   document.getElementById('sc-table').innerHTML=`<tbody>${makeRows(frontH,'Out')}${makeRows(backH,'In')}</tbody>`;
 }
 function scUpdate(hole,val){
-  const c9=hbhData.strokes9||hcp9(hbhData.hcp);
+  const c9=hbhData.strokes9;
   hbhData.scores[hole]=parseInt(val)||0;
   const frontH=hbhData.holes.filter(h=>h.h<=9);const backH=hbhData.holes.filter(h=>h.h>=10);
   ['Out','In'].forEach((lbl,idx)=>{
@@ -1170,13 +1288,6 @@ function scUpdate(hole,val){
     const totNet=hs.reduce((s,h)=>s+(hbhData.scores[h.h]?netSc(hbhData.scores[h.h],c9,h.hcp):0),0);
     const el=document.getElementById('sc-tot-'+lbl);if(el)el.textContent=tot||'–';
     const nel=document.getElementById('sc-nettot-'+lbl);if(nel)nel.textContent=totNet||'–';
-    // also update net cells live
-    hs.forEach(h=>{
-      const g=hbhData.scores[h.h];
-      const inp=document.getElementById('sci-'+h.h);
-      if(!inp)return;
-      // net cell is sibling row — find by traversing table
-    });
   });
 }
 // ── POST SCORES ──
@@ -1585,36 +1696,53 @@ function renderAdminTab(name){
 function renderRoster(){
   const el=document.getElementById('roster-list');if(!el)return;
   el.innerHTML=S.players.length
-    ?S.players.map(p=>`<div class="pcard">
+    ?S.players.map(p=>{
+      const sF=p.strokesF!=null?p.strokesF:'auto';
+      const sB=p.strokesB!=null?p.strokesB:'auto';
+      return`<div class="pcard">
         <div class="pav">${p.first[0]}${p.last[0]}</div>
-        <div class="pinfo"><strong>${p.first} ${p.last}</strong><span>HCP: ${p.handicap||'–'}${p.email?' · '+p.email:''}</span></div>
+        <div class="pinfo">
+          <strong>${p.first} ${p.last}</strong>
+          <span>HCP: ${p.handicap||'–'} · Front: ${sF} str · Back: ${sB} str${p.email?' · '+p.email:''}</span>
+        </div>
         <button class="btn-out btn btn-sm" onclick="editPlayer('${p.id}')">Edit</button>
         <button class="btn-danger btn btn-sm" onclick="delPlayer('${p.id}')">&times;</button>
-      </div>`).join('')+`<div class="cap mt8">${S.players.length}/10 rostered</div>`
+      </div>`;
+    }).join('')+`<div class="cap mt8">${S.players.length}/10 rostered</div>`
     :'<div class="empty-state"><div class="ei">👥</div>No players yet.</div>';
 }
 async function savePlayer(){
   const first=document.getElementById('pfirst').value.trim(),last=document.getElementById('plast').value.trim();
-  const hcp=parseFloat(document.getElementById('phcp').value)||0,email=document.getElementById('pemail').value.trim();
+  const hcp=parseFloat(document.getElementById('phcp').value)||0;
+  const email=document.getElementById('pemail').value.trim();
+  const strokesF=parseInt(document.getElementById('pstrokesF').value)||null;
+  const strokesB=parseInt(document.getElementById('pstrokesB').value)||null;
   const eid=document.getElementById('pid').value;
   if(!first||!last){alert('Name required');return}
   if(!eid&&S.players.length>=10){alert('Roster full — max 10');return}
-  if(eid){const p=S.players.find(x=>x.id===eid);if(p){p.first=first;p.last=last;p.handicap=hcp;p.email=email}}
-  else S.players.push({id:Date.now()+'',first,last,handicap:hcp,email});
+  if(eid){
+    const p=S.players.find(x=>x.id===eid);
+    if(p){p.first=first;p.last=last;p.handicap=hcp;p.email=email;p.strokesF=strokesF;p.strokesB=strokesB;}
+  }else{
+    S.players.push({id:Date.now()+'',first,last,handicap:hcp,email,strokesF,strokesB});
+  }
   await sv('players');clearPForm();renderRoster();
-  // refresh picker if open
   if(currentPlayer){const up=S.players.find(x=>x.id===currentPlayer.id);if(up)currentPlayer=up;}
 }
 function editPlayer(id){
   const p=S.players.find(x=>x.id===id);if(!p)return;
-  document.getElementById('pid').value=p.id;document.getElementById('pfirst').value=p.first;
-  document.getElementById('plast').value=p.last;document.getElementById('phcp').value=p.handicap||'';
+  document.getElementById('pid').value=p.id;
+  document.getElementById('pfirst').value=p.first;
+  document.getElementById('plast').value=p.last;
+  document.getElementById('phcp').value=p.handicap||'';
   document.getElementById('pemail').value=p.email||'';
+  document.getElementById('pstrokesF').value=p.strokesF??'';
+  document.getElementById('pstrokesB').value=p.strokesB??'';
 }
 async function delPlayer(id){
   if(!confirm('Remove player?'))return;S.players=S.players.filter(p=>p.id!==id);await sv('players');renderRoster();
 }
-function clearPForm(){['pid','pfirst','plast','phcp','pemail'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=''})}
+function clearPForm(){['pid','pfirst','plast','phcp','pemail','pstrokesF','pstrokesB'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=''})}
 
 function loadScoreAdmin(){
   const wf=document.getElementById('swf')?.value,pf=document.getElementById('spf')?.value;
@@ -1765,37 +1893,49 @@ function renderMassEntry(){
   const el=document.getElementById('mass-entry-wrap');
   if(!el)return;
   if(!S.players.length){el.innerHTML='<div class="empty-state"><div class="ei">👥</div>Add players first.</div>';return}
-  // Header: hole number with par, mark which holes get strokes based on player hcp — shown per-player in rows
+
   const hdrCells=hls.map(h=>`<th style="text-align:center;min-width:46px">${h.h}<br><span style="font-size:9px;font-weight:400;color:rgba(255,255,255,0.65)">P${h.p}</span></th>`).join('');
+
   const rows=S.players.map(p=>{
     const existing=S.scores.find(s=>s.playerId===p.id&&s.week===week);
-    const c9=hcp9(p.handicap||0);
-    // Calculate which holes get strokes for this player
+    // Use player's profile strokes for this nine; show it as editable
+    const profileStr=getPlayerStrokes9(p,nine);
     const cells=hls.map(h=>{
       const gh=existing?.holes.find(x=>x.hole===h.h);
       const val=gh?.gross||'';
-      const strokes=netStr(c9,h.hcp);
-      const strokeMark=strokes>0?`<span style="color:var(--g2);font-weight:700;font-size:10px">${strokes===2?'**':'*'}</span>`:'';
+      const strokes=netStr(profileStr,h.hcp);
+      const strokeMark=strokes>0?`<span style="color:var(--g2);font-weight:700;font-size:11px;line-height:1">${'*'.repeat(strokes)}</span>`:'';
       return`<td style="padding:2px;text-align:center">
-        <div style="display:flex;align-items:center;justify-content:center;gap:1px">
-          <input class="week-score-inp" type="number" data-pid="${p.id}" data-hole="${h.h}" data-c9="${c9}" data-par="${h.p}" data-hcp="${h.hcp}" value="${val}" min="1" max="12" inputmode="numeric" style="width:38px;height:30px;text-align:center;padding:0">
+        <div style="display:flex;align-items:center;justify-content:center;gap:2px">
+          <input class="week-score-inp" type="number"
+            data-pid="${p.id}" data-hole="${h.h}" data-par="${h.p}" data-hcp="${h.hcp}"
+            value="${val}" min="1" max="12" inputmode="numeric"
+            style="width:38px;height:30px;text-align:center;padding:0">
           ${strokeMark}
         </div>
       </td>`;
     }).join('');
-    return`<tr>
+
+    return`<tr id="me-row-${p.id}">
       <td style="white-space:nowrap;font-size:12px;font-weight:500;padding:4px 8px">${p.first} ${p.last}</td>
-      <td style="font-size:11px;color:var(--txt3);padding:4px 6px;text-align:center">${p.handicap||0}<br><span style="font-size:9px">${c9}str</span></td>
+      <td style="padding:2px 4px;text-align:center">
+        <input type="number" id="me-str-${p.id}" value="${profileStr}" min="0" max="18"
+          style="width:36px;height:28px;font-size:12px;font-weight:700;color:var(--g2);text-align:center;padding:0;border:1px solid var(--border);border-radius:4px;background:#fff"
+          title="Strokes received (from profile, editable)"
+          onchange="refreshMassRowStrokes('${p.id}')">
+        <div style="font-size:9px;color:var(--txt4)">str</div>
+      </td>
       ${cells}
       <td id="me-gross-${p.id}" style="font-size:12px;font-weight:600;color:var(--txt2);padding:4px 6px;text-align:center;min-width:36px">–</td>
       <td id="me-net-${p.id}" style="font-size:12px;font-weight:600;color:var(--g2);padding:4px 6px;text-align:center;min-width:36px">–</td>
       <td id="me-sf-${p.id}" style="font-size:12px;font-weight:700;color:var(--g1);padding:4px 6px;text-align:center;min-width:36px">–</td>
     </tr>`;
   }).join('');
+
   el.innerHTML=`<table style="font-size:12px;min-width:500px;border-collapse:collapse">
     <thead><tr>
-      <th style="text-align:left">Player</th>
-      <th style="text-align:center">HCP<br><span style="font-size:9px;font-weight:400">Str</span></th>
+      <th style="text-align:left;min-width:110px">Player</th>
+      <th style="text-align:center;min-width:44px">Str<br><span style="font-size:8px;font-weight:400">edit</span></th>
       ${hdrCells}
       <th style="text-align:center">Gross</th>
       <th style="text-align:center">Net</th>
@@ -1803,25 +1943,54 @@ function renderMassEntry(){
     </tr></thead>
     <tbody>${rows}</tbody>
   </table>
-  <div class="cap mt8">* = player receives 1 stroke on this hole · ** = 2 strokes · Green = contributed to team score</div>`;
-  // Live update on any input
+  <div class="cap mt8">* = 1 stroke · ** = 2 strokes on that hole · Str column pulled from player profile (editable per round)</div>`;
+
   el.querySelectorAll('input[data-pid]').forEach(inp=>{
     inp.addEventListener('input',()=>updateMassSF());
   });
-  // Populate totals for pre-filled scores
+  updateMassSF();
+}
+
+// When strokes field changes for a player, re-render their stroke markers
+function refreshMassRowStrokes(pid){
+  const nine=document.getElementById('me-nine')?.value||'front';
+  const hls=getHoles(nine);
+  const strInput=document.getElementById('me-str-'+pid);
+  const c9=parseInt(strInput?.value)||0;
+  // Update stroke marks in all cells for this player
+  hls.forEach(h=>{
+    const cell=document.querySelector(`input[data-pid="${pid}"][data-hole="${h.h}"]`);
+    if(!cell)return;
+    const strokes=netStr(c9,h.hcp);
+    // Find or create the stroke mark span next to the input
+    const wrap=cell.parentElement;
+    let mark=wrap.querySelector('.stroke-mark');
+    if(!mark){mark=document.createElement('span');mark.className='stroke-mark';wrap.appendChild(mark);}
+    if(strokes>0){
+      mark.textContent='*'.repeat(strokes);
+      mark.style.cssText='color:var(--g2);font-weight:700;font-size:11px;line-height:1';
+    }else{mark.textContent='';}
+    // Update c9 used in calculations via data attribute
+    cell.dataset.c9override=c9;
+  });
   updateMassSF();
 }
 
 function updateMassSF(){
+  const nine=document.getElementById('me-nine')?.value||'front';
+  const hls=getHoles(nine);
   S.players.forEach(p=>{
-    const inputs=document.querySelectorAll(`input[data-pid="${p.id}"]`);
+    const inputs=document.querySelectorAll(`input[data-pid="${p.id}"][data-hole]`);
+    // Get current strokes from the per-player strokes input (may have been overridden)
+    const strInput=document.getElementById('me-str-'+p.id);
+    const c9=strInput?parseInt(strInput.value)||0:getPlayerStrokes9(p,nine);
+
     let gross=0,net=0,sf=0,hasScore=false;
     inputs.forEach(inp=>{
       const grossVal=parseInt(inp.value);
       const hole=parseInt(inp.dataset.hole);
       if(!grossVal||!hole||grossVal<1)return;
       hasScore=true;
-      const c9=parseInt(inp.dataset.c9)||0;
       const par=parseInt(inp.dataset.par)||4;
       const hcp=parseInt(inp.dataset.hcp)||hole;
       const netVal=netSc(grossVal,c9,hcp);
@@ -1836,7 +2005,7 @@ function updateMassSF(){
     if(netEl)netEl.textContent=hasScore?net:'–';
     if(sfEl){
       sfEl.textContent=hasScore?sf:'–';
-      if(sfEl&&hasScore)sfEl.style.color=sf>=14?'var(--gold)':sf>=10?'var(--g2)':'var(--txt2)';
+      if(hasScore)sfEl.style.color=sf>=14?'var(--gold)':sf>=10?'var(--g2)':'var(--txt2)';
     }
   });
 }
@@ -1845,18 +2014,21 @@ async function saveMassEntry(){
   const nine=document.getElementById('me-nine')?.value||'front';
   const hls=getHoles(nine);
   let saved=0;
-  // Group inputs by player
   for(const p of S.players){
-    const inputs=document.querySelectorAll(`input[data-pid="${p.id}"]`);
+    const inputs=document.querySelectorAll(`input[data-pid="${p.id}"][data-hole]`);
     const holes=[];
     inputs.forEach(inp=>{
       const gross=parseInt(inp.value);
       const hole=parseInt(inp.dataset.hole);
-      if(gross&&hole)holes.push({hole,gross});
+      if(gross&&hole&&gross>=1)holes.push({hole,gross});
     });
     if(!holes.length)continue;
-    const ns={id:p.id+'_w'+week,playerId:p.id,week,nine,startHole:hls[0].h,
-      handicap:p.handicap||0,holes,submittedAt:new Date().toISOString()};
+    // Use the per-row strokes value (may have been overridden)
+    const strInput=document.getElementById('me-str-'+p.id);
+    const strokes9=strInput?parseInt(strInput.value)||0:getPlayerStrokes9(p,nine);
+    const ns={id:p.id+'_w'+week,playerId:p.id,week,nine,
+      startHole:hls[0].h,handicap:p.handicap||0,strokes9,
+      holes,submittedAt:new Date().toISOString()};
     S.scores=S.scores.filter(s=>!(s.playerId===p.id&&s.week===week));
     S.scores.push(ns);
     saved++;
