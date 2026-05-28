@@ -420,7 +420,7 @@ tbody tr:hover td{background:var(--surface2)}
     <button class="tab" onclick="switchTab('st','skins',this)">Skins</button>
     <button class="tab" onclick="switchTab('st','lgn',this)">Low Gross/Net</button>
     <button class="tab" onclick="switchTab('st','ringer',this)">Ringer</button>
-    <button class="tab" onclick="switchTab('st','gb',this)">Gang Bang</button>
+    <button class="tab" onclick="switchTab('st','gb',this)">GB</button>
     <button class="tab" onclick="switchTab('st','prize',this)">Prize Money</button>
   </div>
   <div id="st-team"></div>
@@ -501,7 +501,7 @@ tbody tr:hover td{background:var(--surface2)}
 
   <div id="ad-gamesetup" style="display:none">
     <div class="card">
-      <div class="card-title">Gang Bang — Weekly Target</div>
+      <div class="card-title">GB — Weekly Target</div>
       <div class="alert-gold alert">As captain, set the target player before each round.</div>
       <div id="gb-targets-admin" style="margin-bottom:12px"></div>
       <div class="form2">
@@ -515,7 +515,7 @@ tbody tr:hover td{background:var(--surface2)}
   <div id="ad-pool" style="display:none">
     <div class="card">
       <div class="card-title">Season Pool / $$</div>
-      <div class="alert-green alert">10 players × $100 = $1,000 · Skins $20/wk · Gang Bang $20/wk</div>
+      <div class="alert-green alert">10 players × $100 = $1,000 · Skins $20/wk · GB $20/wk</div>
       <div class="form2">
         <div class="fg"><label>Players</label><input type="number" id="pp-players" value="10" oninput="updatePoolDisplay()"></div>
         <div class="fg"><label>Entry Fee ($)</label><input type="number" id="pp-fee" value="100" oninput="updatePoolDisplay()"></div>
@@ -523,7 +523,7 @@ tbody tr:hover td{background:var(--surface2)}
       <div id="pool-total" style="text-align:center;font-family:'Bebas Neue',sans-serif;font-size:20px;color:var(--g1);margin:6px 0;letter-spacing:1px">Total Pool: $1,000</div>
       <div class="divider"></div>
       <div class="form2">
-        <div class="fg"><label>Gang Bang ($/wk)</label><input type="number" id="pp-gb" value="20"></div>
+        <div class="fg"><label>GB ($/wk)</label><input type="number" id="pp-gb" value="20"></div>
         <div class="fg"><label>Skins ($/wk)</label><input type="number" id="pp-skins" value="20"></div>
       </div>
       <div class="form2">
@@ -743,7 +743,7 @@ function getAllHoles(){
   if(ac&&ac.holes&&ac.holes.length)return ac.holes.map(h=>({h:h.num,p:h.par,hcp:h.hcp,y:h.yards}));
   return ALL_H;
 }
-const pname=id=>{const p=S.players.find(x=>x.id===id);return p?p.first+' '+p.last:'?'};
+const pname=id=>{const p=S.players.find(x=>x.id===id);return p?(p.first+(p.last?' '+p.last[0]+'.':[])):'?'};
 const pfirst=id=>{const p=S.players.find(x=>x.id===id);return p?p.first:'?'};
 // Net strokes: use course handicap directly (full 18-hole hcp passed in)
 // extraStrokes = player's course handicap (calculated before round starts)
@@ -1059,7 +1059,7 @@ function renderDashTiles(){
     tile('Low Gross',avgLg||'–',lgPlace>0?lgPlace:null,'avg gross')+
     tile('Low Net',avgLn||'–',lnPlace>0?lnPlace:null,'avg net')+
     tile('Ringer Board',me.ringerTotal??'–',rgPlace>0?rgPlace:null,'best 9-hole net total')+
-    tile('Gang Bang','$'+(me.gbWin||0).toFixed(0),null,'cash won')+
+    tile('GB','$'+(me.gbWin||0).toFixed(0),null,'cash won')+
     tile('Prize Money','$'+(me.totalPrize||0).toFixed(0),prPlace,'total winnings');
 }
 
@@ -1549,7 +1549,7 @@ function renderStGB(){
     return (a.last||a.first).localeCompare(b.last||b.first);
   });
   document.getElementById('st-gb').innerHTML=`<div class="card">
-    <div class="card-title">Gang Bang</div>
+    <div class="card-title">GB</div>
     <div class="alert">$${gbW}/wk · Target wins all if unbeaten · Beaters split $${gbW} · $${gbW*7} total season · Sorted A–Z (you always first)</div>
     <div class="twrap"><table>
       <thead><tr><th>Player</th>${WEEKS.map(w=>`<th>Wk${w.num}<br><span style="font-size:9px;font-weight:400;font-family:Inter">${w.date}</span></th>`).join('')}<th>Total</th></tr></thead>
@@ -1573,7 +1573,7 @@ function renderStPrize(){
   document.getElementById('st-prize').innerHTML=`<div class="card">
     <div class="card-title">Total Prize Money</div>
     <div class="twrap"><table>
-      <thead><tr><th>#</th><th>Player</th><th>Skins</th><th>Low Gross</th><th>Low Net</th><th>Gang Bang</th><th>Total</th></tr></thead>
+      <thead><tr><th>#</th><th>Player</th><th>Skins</th><th>Low Gross</th><th>Low Net</th><th>GB</th><th>Total</th></tr></thead>
       <tbody>${sorted.map((p,i)=>`<tr class="${i<3?'tr-gold':''} ${p.playerId===currentPlayer?.id?'tr-us':''}">
         <td style="font-weight:700;color:${i===0?'var(--gold)':i===1?'var(--txt3)':'var(--txt4)'}">${i+1}</td>
         <td>${pname(p.playerId)}${p.playerId===currentPlayer?.id?` <span class="badge b-us">You</span>`:''}</td>
@@ -1712,12 +1712,12 @@ function genReport(){
       <div class="ritem">Low Gross (${mgr}): ${lgW.map(x=>`<strong>${pname(x.pid)}</strong>`).join(' & ')} <span style="color:var(--g2);font-weight:600">+$${c.lowGross||10}</span></div>
       <div class="ritem">Low Net (${mnt}): ${lnW.map(x=>`<strong>${pname(x.pid)}</strong>`).join(' & ')} <span style="color:var(--g2);font-weight:600">+$${c.lowNet||10}</span></div>
     </div>
-    <div class="rsec"><h3>5. Gang Bang ($${c.gbWeekly||20} pot)</h3>
+    <div class="rsec"><h3>5. GB ($${c.gbWeekly||20} pot)</h3>
       ${tid?`<div class="ritem">Target: <strong>${pname(tid)}</strong> · Net: <strong>${tNet??'–'}</strong></div>`+
         (beaters.length===0?`<div class="ritem tg fw">Target held on — ${pname(tid)} wins all $${c.gbWeekly||20}</div>`
           :`<div class="ritem">Beaten by: ${beaters.map(b=>`<strong>${pname(b.playerId)}</strong> (net ${rndNet(b)})`).join(', ')}</div>`+
            `<div class="ritem tg">$${(((c.gbWeekly||20))/beaters.length).toFixed(2)} each → ${beaters.map(b=>`<strong>${pname(b.playerId)}</strong>`).join(' + ')}</div>`)
-      :'<div class="ritem tgr">No Gang Bang target set. Set one in Admin → Game Setup.</div>'}
+      :'<div class="ritem tgr">No GB target set. Set one in Admin → Game Setup.</div>'}
     </div>`;
 }
 
