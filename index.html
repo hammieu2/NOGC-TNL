@@ -175,6 +175,17 @@ tbody tr:hover td{background:var(--surface2)}
 .hbh-pm:hover{border-color:var(--g2);color:var(--g1);background:rgba(45,122,79,0.06)}
 .hbh-pm:active{transform:scale(.92)}
 .hbh-nav{display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--border);padding-top:14px;gap:10px}
+.hbh-player-panel{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px 10px;text-align:center;display:flex;flex-direction:column;align-items:center}
+.hbh-player-name{font-family:'Bebas Neue',sans-serif;font-size:16px;color:var(--g1);letter-spacing:1px;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.hbh-stroke-badge{font-size:10px;font-weight:600;color:var(--g2);background:rgba(45,122,79,0.08);border:1px solid rgba(45,122,79,0.2);border-radius:20px;padding:1px 8px;min-height:18px;margin-bottom:8px;white-space:nowrap}
+.hbh-score-sm{font-family:'Bebas Neue',sans-serif;font-size:54px;color:var(--g1);line-height:1;min-height:58px;letter-spacing:1px}
+.hbh-score-sm.at-par{color:var(--g2)}
+.hbh-score-sm.under{color:var(--gold)}
+.hbh-score-sm.over{color:var(--txt3)}
+.hbh-topar-sm{font-size:11px;font-weight:600;margin:2px 0 4px;min-height:16px;color:var(--txt3)}
+.hbh-topar-sm.e{color:var(--g2)}.hbh-topar-sm.u{color:var(--gold)}.hbh-topar-sm.o{color:var(--txt3)}
+.hbh-sf-sm{font-size:11px;font-weight:600;color:var(--g1);min-height:16px;text-align:center}
+@media(max-width:360px){.hbh-score-sm{font-size:44px}.hbh-pm{width:44px;height:44px;font-size:22px}}
 .hbh-nav-btn{background:none;border:1px solid var(--border);color:var(--txt2);font-family:'Inter',sans-serif;font-size:12px;font-weight:500;padding:7px 14px;border-radius:8px;cursor:pointer;transition:all .15s}
 .hbh-nav-btn:hover{border-color:var(--g2);color:var(--g1)}
 .hbh-post{background:var(--g-grad);color:#fff;font-family:'Inter',sans-serif;font-size:12px;font-weight:600;padding:8px 20px;border:none;border-radius:8px;cursor:pointer}
@@ -381,41 +392,58 @@ tbody tr:hover td{background:var(--surface2)}
   <!-- Hole-by-Hole view -->
   <div id="entry-hbh" style="display:none">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-      <button class="btn-out btn btn-sm" onclick="resetEntry()">← Back to Setup</button>
+      <button class="btn-out btn btn-sm" onclick="resetEntry()">← Back</button>
+      <div id="hbh-week-label" style="font-size:11px;color:var(--txt3);text-align:center"></div>
       <button class="btn-out btn btn-sm" onclick="navTo('dash',null)">🏠 Home</button>
     </div>
-    <!-- Player toggle tabs (shown when partner is set) -->
-    <div id="hbh-player-tabs" style="display:none;margin-bottom:10px">
-      <div style="display:flex;gap:4px;background:var(--surface2);border-radius:10px;padding:3px;border:1px solid var(--border)">
-        <button id="hbh-tab-me" onclick="hbhSetActive('me')"
-          style="flex:1;border:none;border-radius:7px;padding:8px;font-family:'Inter',sans-serif;font-size:12px;font-weight:600;cursor:pointer;background:var(--g-grad);color:#fff">
-          <span id="hbh-tab-me-label">You</span>
-        </button>
-        <button id="hbh-tab-partner" onclick="hbhSetActive('partner')"
-          style="flex:1;border:none;border-radius:7px;padding:8px;font-family:'Inter',sans-serif;font-size:12px;font-weight:500;cursor:pointer;background:none;color:var(--txt3)">
-          <span id="hbh-tab-partner-label">Partner</span>
-        </button>
-      </div>
-    </div>
     <div class="hbh-dots" id="hbh-dots"></div>
-    <div class="hbh-card">
+
+    <!-- Hole header -->
+    <div style="text-align:center;margin-bottom:12px">
       <div class="hbh-hole-num" id="hbh-hole-num">1</div>
-      <div class="hbh-hole-info" id="hbh-hole-info">Par 5 · 528 yds · Hcp 15</div>
-      <div id="hbh-strokes-badge" style="display:none;margin-bottom:8px;font-size:11px;font-weight:600;color:var(--g2);background:rgba(45,122,79,0.08);border:1px solid rgba(45,122,79,0.2);border-radius:20px;padding:2px 10px;display:inline-block"></div>
-      <div class="hbh-btns">
-        <button class="hbh-pm" onclick="adjScore(-1)">−</button>
-        <div>
-          <div class="hbh-score" id="hbh-score">5</div>
-          <div class="hbh-topar" id="hbh-topar">E</div>
+      <div class="hbh-hole-info" id="hbh-hole-info">Par 5 · 528 yds · Hcp 11</div>
+    </div>
+
+    <!-- Two-player score card -->
+    <div id="hbh-players-wrap" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+
+      <!-- Player 1 -->
+      <div class="hbh-player-panel" id="hbh-panel-me">
+        <div class="hbh-player-name" id="hbh-name-me">You</div>
+        <div class="hbh-stroke-badge" id="hbh-stroke-me"></div>
+        <div class="hbh-btns" style="margin-bottom:6px">
+          <button class="hbh-pm" onclick="adjScore2('me',-1)">−</button>
+          <div>
+            <div class="hbh-score hbh-score-sm" id="hbh-score-me">–</div>
+            <div class="hbh-topar hbh-topar-sm" id="hbh-topar-me"></div>
+          </div>
+          <button class="hbh-pm" onclick="adjScore2('me',1)">+</button>
         </div>
-        <button class="hbh-pm" onclick="adjScore(1)">+</button>
+        <div class="hbh-sf-sm" id="hbh-sf-me"></div>
       </div>
-      <div id="hbh-sf-badge" style="text-align:center;margin-bottom:12px;font-size:13px;font-weight:600;color:var(--g1)"></div>
-      <div class="hbh-nav">
-        <button class="hbh-nav-btn" onclick="hbhPrev()">← Prev</button>
-        <button class="hbh-post" onclick="postScores()">Post Score ✓</button>
-        <button class="hbh-nav-btn" onclick="hbhNext()">Next →</button>
+
+      <!-- Player 2 (partner) — hidden when no partner -->
+      <div class="hbh-player-panel" id="hbh-panel-partner" style="display:none">
+        <div class="hbh-player-name" id="hbh-name-partner">Partner</div>
+        <div class="hbh-stroke-badge" id="hbh-stroke-partner"></div>
+        <div class="hbh-btns" style="margin-bottom:6px">
+          <button class="hbh-pm" onclick="adjScore2('partner',-1)">−</button>
+          <div>
+            <div class="hbh-score hbh-score-sm" id="hbh-score-partner">–</div>
+            <div class="hbh-topar hbh-topar-sm" id="hbh-topar-partner"></div>
+          </div>
+          <button class="hbh-pm" onclick="adjScore2('partner',1)">+</button>
+        </div>
+        <div class="hbh-sf-sm" id="hbh-sf-partner"></div>
       </div>
+
+    </div>
+
+    <!-- Nav -->
+    <div class="hbh-nav">
+      <button class="hbh-nav-btn" onclick="hbhPrev()">← Prev</button>
+      <button class="hbh-post" id="hbh-post-btn" onclick="postScores()">Post Score ✓</button>
+      <button class="hbh-nav-btn" onclick="hbhNext()">Next →</button>
     </div>
   </div>
 
@@ -1222,8 +1250,6 @@ function startEntry(){
     partnerHcp:S.players.find(x=>x.id===partnerId)?.handicap||0,
     partnerStrokes9,
     partnerScores:{},   // hole# → gross score
-    // Which player is currently being edited in HBH mode
-    activePlayer:'me'   // 'me' or 'partner'
   };
   ordered.forEach(h=>{hbhData.scores[h.h]=null;hbhData.partnerScores[h.h]=null;});
 
@@ -1233,16 +1259,7 @@ function startEntry(){
   if(entryMode==='hbh'){
     document.getElementById('entry-hbh').style.display='';
     document.getElementById('entry-sc').style.display='none';
-    // Show/hide partner toggle tabs
-    const tabs=document.getElementById('hbh-player-tabs');
-    if(tabs){
-      tabs.style.display=partnerId?'':'none';
-      if(partnerId){
-        document.getElementById('hbh-tab-me-label').textContent=pname(pid);
-        document.getElementById('hbh-tab-partner-label').textContent=pname(partnerId);
-      }
-    }
-    hbhSetActive('me');
+    renderHBH();
   }else{
     document.getElementById('entry-hbh').style.display='none';
     document.getElementById('entry-sc').style.display='';
@@ -1251,123 +1268,136 @@ function startEntry(){
 }
 // ── HBH ──
 const SF_COLORS=['var(--txt4)','var(--txt3)','var(--g2)','var(--gold)','var(--gold)'];
-const SF_LABELS=['Double Bogey+ — 0 pts','Bogey — 1 pt','Par — 2 pts','Birdie — 3 pts','Eagle — 4 pts'];
-
-function hbhSetActive(who){
-  hbhData.activePlayer=who;
-  // Update tab styles
-  const tabMe=document.getElementById('hbh-tab-me');
-  const tabPart=document.getElementById('hbh-tab-partner');
-  if(tabMe&&tabPart){
-    tabMe.style.background=who==='me'?'var(--g-grad)':'none';
-    tabMe.style.color=who==='me'?'#fff':'var(--txt3)';
-    tabMe.style.fontWeight=who==='me'?'600':'500';
-    tabPart.style.background=who==='partner'?'var(--g-grad)':'none';
-    tabPart.style.color=who==='partner'?'#fff':'var(--txt3)';
-    tabPart.style.fontWeight=who==='partner'?'600':'500';
-  }
-  renderHBH();
-}
+const SF_LABELS=['Dbl Bogey+','Bogey','Par','Birdie','Eagle'];
+const SF_PTS_LABELS=['0 pts','1 pt','2 pts','3 pts','4 pts'];
 
 function renderHBH(){
   const h=hbhData.holes[hbhData.idx];
-  const isPartner=hbhData.activePlayer==='partner'&&hbhData.partnerId;
-  const c9=isPartner?hbhData.partnerStrokes9:hbhData.strokes9;
   const nine=hbhData.nine;
-  const scoreMap=isPartner?hbhData.partnerScores:hbhData.scores;
-  const score=scoreMap[h.h];
-  const strokesOnHole=netStrN(c9,h.hcp,nine);
+  const hasPartner=!!hbhData.partnerId;
   const totalHoles=hbhData.holes.length;
+  const posInRound=hbhData.idx+1;
 
-  // Progress: count holes entered for current active player
-  const enteredCount=hbhData.holes.filter(hh=>scoreMap[hh.h]!=null&&scoreMap[hh.h]>0).length;
-  const allEntered=enteredCount===totalHoles;
+  // Week label
+  const wi=WEEKS.find(w=>w.num===hbhData.week);
+  const wl=document.getElementById('hbh-week-label');
+  if(wl)wl.textContent=`Wk ${hbhData.week} (${wi?.date}) · ${posInRound} of ${totalHoles}`;
 
-  // Dots — show both players' progress if partner present
+  // Show/hide partner panel
+  const partPanel=document.getElementById('hbh-panel-partner');
+  if(partPanel)partPanel.style.display=hasPartner?'':'none';
+  // When solo, make player panel full width
+  const wrap=document.getElementById('hbh-players-wrap');
+  if(wrap)wrap.style.gridTemplateColumns=hasPartner?'1fr 1fr':'1fr';
+
+  // Dots — hole filled when BOTH players (or just player if solo) have entered
   document.getElementById('hbh-dots').innerHTML=hbhData.holes.map((hh,i)=>{
-    const myDone=hbhData.scores[hh.h]!=null&&hbhData.scores[hh.h]>0;
-    const partnerDone=hbhData.partnerId&&hbhData.partnerScores[hh.h]!=null&&hbhData.partnerScores[hh.h]>0;
-    const activeDone=isPartner?partnerDone:myDone;
-    return`<div class="hbh-dot ${activeDone?'done':i===hbhData.idx?'current':''}" onclick="hbhGoTo(${i})" title="Hole ${hh.h}"></div>`;
+    const myDone=(hbhData.scores[hh.h]||0)>0;
+    const partDone=!hasPartner||(hbhData.partnerScores[hh.h]||0)>0;
+    const done=myDone&&partDone;
+    return`<div class="hbh-dot ${done?'done':i===hbhData.idx?'current':''}" onclick="hbhGoTo(${i})" title="Hole ${hh.h}"></div>`;
   }).join('');
 
-  const posInRound=hbhData.idx+1;
+  // Hole header
   document.getElementById('hbh-hole-num').textContent=`Hole ${h.h}`;
-  document.getElementById('hbh-hole-info').textContent=
-    `Par ${h.p} · ${h.y} yds · Hcp ${h.hcp} · ${posInRound} of ${totalHoles}`;
+  document.getElementById('hbh-hole-info').textContent=`Par ${h.p} · ${h.y} yds · Hcp ${h.hcp}`;
 
-  // Strokes badge
-  const sb=document.getElementById('hbh-strokes-badge');
-  if(sb){
-    if(strokesOnHole>0){
-      sb.textContent=strokesOnHole===2?'+2 strokes this hole':'+1 stroke this hole';
-      sb.style.display='inline-block';
-    }else{sb.style.display='none'}
+  // Render each player's panel
+  renderHBHPlayer('me', h, nine, hbhData.playerId, hbhData.strokes9, hbhData.scores);
+  if(hasPartner){
+    renderHBHPlayer('partner', h, nine, hbhData.partnerId, hbhData.partnerStrokes9, hbhData.partnerScores);
   }
 
-  // Score display
-  const sd=document.getElementById('hbh-score');
-  if(score===null||score===0){
-    sd.textContent='–';
-    sd.className='hbh-score over';
-  }else{
-    const net=netScN(score,c9,h.hcp,nine);
-    const netDiff=net-h.p;
-    sd.textContent=score;
-    sd.className='hbh-score'+(netDiff<=-1?' under':netDiff===0?' at-par':' over');
-  }
-
-  // To par / Stableford
-  const tp=document.getElementById('hbh-topar');
-  const sfb=document.getElementById('hbh-sf-badge');
-  if(score===null||score===0){
-    if(tp){tp.textContent='Tap + to enter score';tp.className='hbh-topar'}
-    if(sfb){sfb.textContent='';sfb.style.color=''}
-  }else{
-    const diff=score-h.p;
-    const net=netScN(score,c9,h.hcp,nine);
-    const sf=sfPts(net,h.p);
-    if(tp){
-      tp.textContent=diff===0?'E (gross par)':diff>0?'+'+diff+' gross':diff+' gross';
-      tp.className='hbh-topar'+(diff<0?' u':diff===0?' e':' o');
-    }
-    if(sfb){
-      sfb.textContent=SF_LABELS[Math.min(4,Math.max(0,sf))];
-      sfb.style.color=SF_COLORS[Math.min(4,Math.max(0,sf))];
-    }
-  }
-
-  // Post button — enabled when ALL holes for BOTH players are entered
-  const myComplete=hbhData.holes.every(hh=>hbhData.scores[hh.h]>0);
-  const partnerComplete=!hbhData.partnerId||hbhData.holes.every(hh=>hbhData.partnerScores[hh.h]>0);
-  const canPost=myComplete&&partnerComplete;
-  const postBtn=document.querySelector('.hbh-post');
+  // Post button — enabled when all holes entered for all players
+  const myAll=hbhData.holes.every(hh=>(hbhData.scores[hh.h]||0)>0);
+  const partAll=!hasPartner||hbhData.holes.every(hh=>(hbhData.partnerScores[hh.h]||0)>0);
+  const canPost=myAll&&partAll;
+  const postBtn=document.getElementById('hbh-post-btn');
   if(postBtn){
     postBtn.disabled=!canPost;
     postBtn.style.opacity=canPost?'1':'0.4';
     if(canPost){
       postBtn.textContent='Post Score ✓';
     }else{
-      const myCount=hbhData.holes.filter(hh=>hbhData.scores[hh.h]>0).length;
-      const pCount=hbhData.partnerId?hbhData.holes.filter(hh=>hbhData.partnerScores[hh.h]>0).length:null;
-      postBtn.textContent=pCount!==null
-        ?`Post (${pname(hbhData.playerId)}: ${myCount}/9 · ${pname(hbhData.partnerId)}: ${pCount}/9)`
-        :`Post Score (${myCount}/${totalHoles} holes)`;
+      const myCount=hbhData.holes.filter(hh=>(hbhData.scores[hh.h]||0)>0).length;
+      if(hasPartner){
+        const pCount=hbhData.holes.filter(hh=>(hbhData.partnerScores[hh.h]||0)>0).length;
+        postBtn.textContent=`Post (${myCount}/${totalHoles} · ${pCount}/${totalHoles})`;
+      }else{
+        postBtn.textContent=`Post (${myCount}/${totalHoles})`;
+      }
     }
   }
 }
 
-function adjScore(d){
+function renderHBHPlayer(who, h, nine, playerId, c9, scoreMap){
+  const score=scoreMap[h.h]||null;
+  const strokesOnHole=netStrN(c9,h.hcp,nine);
+
+  // Name
+  const nameEl=document.getElementById(`hbh-name-${who}`);
+  if(nameEl)nameEl.textContent=pname(playerId);
+
+  // Stroke badge
+  const sb=document.getElementById(`hbh-stroke-${who}`);
+  if(sb){
+    if(strokesOnHole>0){
+      sb.textContent=strokesOnHole===2?'+2 strokes':'+1 stroke';
+      sb.style.visibility='visible';
+    }else{
+      sb.textContent='';
+      sb.style.visibility='hidden';
+    }
+  }
+
+  // Score
+  const sd=document.getElementById(`hbh-score-${who}`);
+  if(sd){
+    if(!score){sd.textContent='–';sd.className='hbh-score-sm over';}
+    else{
+      const net=netScN(score,c9,h.hcp,nine);
+      const nd=net-h.p;
+      sd.textContent=score;
+      sd.className='hbh-score-sm'+(nd<=-1?' under':nd===0?' at-par':' over');
+    }
+  }
+
+  // To par
+  const tp=document.getElementById(`hbh-topar-${who}`);
+  if(tp){
+    if(!score){tp.textContent='tap to enter';tp.className='hbh-topar-sm';}
+    else{
+      const d=score-h.p;
+      tp.textContent=d===0?'E':d>0?'+'+d:''+d;
+      tp.className='hbh-topar-sm'+(d<0?' u':d===0?' e':' o');
+    }
+  }
+
+  // SF label
+  const sfEl=document.getElementById(`hbh-sf-${who}`);
+  if(sfEl){
+    if(!score){sfEl.textContent='';sfEl.style.color='';}
+    else{
+      const net=netScN(score,c9,h.hcp,nine);
+      const sf=sfPts(net,h.p);
+      const idx=Math.min(4,Math.max(0,sf));
+      sfEl.textContent=SF_LABELS[idx]+' — '+SF_PTS_LABELS[idx];
+      sfEl.style.color=SF_COLORS[idx];
+    }
+  }
+}
+
+function adjScore2(who, d){
   const h=hbhData.holes[hbhData.idx];
-  const isPartner=hbhData.activePlayer==='partner'&&hbhData.partnerId;
-  const scoreMap=isPartner?hbhData.partnerScores:hbhData.scores;
+  const scoreMap=who==='partner'?hbhData.partnerScores:hbhData.scores;
   const cur=scoreMap[h.h]||h.p;
   scoreMap[h.h]=Math.max(1,Math.min(12,cur+d));
   renderHBH();
 }
-function hbhNext(){
-  if(hbhData.idx<hbhData.holes.length-1){hbhData.idx++;renderHBH();}
-}
+// Keep adjScore alias so nothing else breaks
+function adjScore(d){adjScore2('me',d)}
+function hbhSetActive(){}  // no-op — kept so any stale references don't crash
+function hbhNext(){if(hbhData.idx<hbhData.holes.length-1){hbhData.idx++;renderHBH();}}
 function hbhPrev(){if(hbhData.idx>0){hbhData.idx--;renderHBH()}}
 function hbhGoTo(i){hbhData.idx=i;renderHBH()}
 // ── SCORECARD ──
