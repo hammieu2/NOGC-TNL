@@ -326,26 +326,50 @@ tbody tr:hover td{background:var(--surface2)}
 <div id="page-entry" class="page">
   <div class="card" id="entry-setup-card">
     <div class="card-title">Enter Scores</div>
-    <div class="fg"><label>Week</label><select id="ew"></select></div>
-    <div class="fg"><label>Player</label><select id="ep" onchange="onPlayerChange()"></select></div>
+
+    <!-- Week + Nine + Start Hole -->
     <div class="form2">
-      <div class="fg"><label>Handicap (18-hole)</label><input type="number" id="ehcp" min="0" max="54" placeholder="0"></div>
-      <div class="fg">
-        <label>Strokes Received This 9</label>
-        <input type="number" id="estrokes" min="0" max="18" placeholder="from profile">
-        <div style="font-size:10px;color:var(--txt3);margin-top:2px" id="strokes-hint">Pulled from player profile · edit to override</div>
-      </div>
-    </div>
-    <div class="form2">
+      <div class="fg"><label>Week</label><select id="ew"></select></div>
       <div class="fg"><label>Playing</label>
-        <select id="enine" onchange="updateStartHoles();onPlayerChange()">
+        <select id="enine" onchange="updateStartHoles();onPlayerChange();onPartnerChange()">
           <option value="front">Front 9 (1–9)</option>
           <option value="back">Back 9 (10–18)</option>
         </select>
       </div>
-      <div class="fg"><label>Starting Hole</label><select id="estart"></select></div>
     </div>
+    <div class="fg"><label>Starting Hole</label><select id="estart"></select></div>
+
     <div class="divider"></div>
+
+    <!-- Player 1 -->
+    <div class="sec-bar" style="margin-bottom:10px">You</div>
+    <div class="form2">
+      <div class="fg"><label>Your Name</label><select id="ep" onchange="onPlayerChange()"></select></div>
+      <div class="fg"><label>Strokes This 9</label>
+        <input type="number" id="estrokes" min="0" max="18" placeholder="from profile">
+        <div style="font-size:10px;color:var(--txt3);margin-top:2px" id="strokes-hint">Pulled from profile</div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Partner (optional) -->
+    <div class="sec-bar" style="margin-bottom:10px">Playing Partner <span style="font-size:11px;font-family:Inter;font-weight:400;letter-spacing:0;color:rgba(255,255,255,0.6)">(optional)</span></div>
+    <div class="form2">
+      <div class="fg"><label>Partner Name</label>
+        <select id="epartner" onchange="onPartnerChange()">
+          <option value="">— No partner —</option>
+        </select>
+      </div>
+      <div class="fg"><label>Partner Strokes This 9</label>
+        <input type="number" id="epartner-strokes" min="0" max="18" placeholder="from profile" disabled style="opacity:0.5">
+        <div style="font-size:10px;color:var(--txt3);margin-top:2px" id="partner-strokes-hint">Select a partner first</div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Entry mode -->
     <div style="font-family:'Bebas Neue',sans-serif;font-size:13px;color:var(--g1);letter-spacing:1px;margin-bottom:8px">Entry Mode</div>
     <div style="display:flex;gap:8px;margin-bottom:12px">
       <button class="btn" id="mode-hbh-btn" onclick="setMode('hbh')">Hole by Hole</button>
@@ -359,6 +383,19 @@ tbody tr:hover td{background:var(--surface2)}
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
       <button class="btn-out btn btn-sm" onclick="resetEntry()">← Back to Setup</button>
       <button class="btn-out btn btn-sm" onclick="navTo('dash',null)">🏠 Home</button>
+    </div>
+    <!-- Player toggle tabs (shown when partner is set) -->
+    <div id="hbh-player-tabs" style="display:none;margin-bottom:10px">
+      <div style="display:flex;gap:4px;background:var(--surface2);border-radius:10px;padding:3px;border:1px solid var(--border)">
+        <button id="hbh-tab-me" onclick="hbhSetActive('me')"
+          style="flex:1;border:none;border-radius:7px;padding:8px;font-family:'Inter',sans-serif;font-size:12px;font-weight:600;cursor:pointer;background:var(--g-grad);color:#fff">
+          <span id="hbh-tab-me-label">You</span>
+        </button>
+        <button id="hbh-tab-partner" onclick="hbhSetActive('partner')"
+          style="flex:1;border:none;border-radius:7px;padding:8px;font-family:'Inter',sans-serif;font-size:12px;font-weight:500;cursor:pointer;background:none;color:var(--txt3)">
+          <span id="hbh-tab-partner-label">Partner</span>
+        </button>
+      </div>
     </div>
     <div class="hbh-dots" id="hbh-dots"></div>
     <div class="hbh-card">
@@ -1066,20 +1103,21 @@ function renderDashTiles(){
 // ═══ ENTER SCORES ═══
 function initEntry(){
   pSel('ew',WEEKS.map(w=>({v:w.num,l:`Week ${w.num} (${w.date}) vs ${w.opp}`})));
-  pSel('ep',S.players.map(p=>({v:p.id,l:`${p.first} ${p.last} (HCP ${p.handicap||0})`})));
+  // Player dropdown — exclude no-selection option since we always need a player
+  pSel('ep',S.players.map(p=>({v:p.id,l:`${pname(p.id)}`})));
+  // Partner dropdown — includes "no partner" option
+  pSel('epartner',[{v:'',l:'— No partner —'},...S.players.map(p=>({v:p.id,l:`${pname(p.id)}`}))]);
   updateStartHoles();
   if(currentPlayer){
     document.getElementById('ep').value=currentPlayer.id;
-    document.getElementById('ehcp').value=currentPlayer.handicap||0;
   }
-  loadProfileStrokes();
+  onPlayerChange();
 }
-function loadProfileStrokes(){
-  const pid=document.getElementById('ep')?.value;
-  const nine=document.getElementById('enine')?.value||'front';
-  const p=S.players.find(x=>x.id===pid);
-  const strEl=document.getElementById('estrokes');
-  const hint=document.getElementById('strokes-hint');
+
+function loadProfileStrokes(playerId, nine, inputId, hintId){
+  const p=S.players.find(x=>x.id===playerId);
+  const strEl=document.getElementById(inputId);
+  const hint=document.getElementById(hintId);
   if(!strEl)return;
   if(p){
     const profStr=nine==='front'?p.strokesF:p.strokesB;
@@ -1089,16 +1127,49 @@ function loadProfileStrokes(){
     }else{
       const auto=hcp9(p.handicap||0);
       strEl.value=auto;
-      if(hint)hint.textContent=`Auto: HCP ${p.handicap||0} ÷ 2 = ${auto} · no profile strokes set · edit to override`;
+      if(hint)hint.textContent=`Auto (HCP ${p.handicap||0} ÷ 2 = ${auto}) · no profile strokes set`;
     }
+  }else{
+    strEl.value='';
+    if(hint)hint.textContent='Select a player first';
   }
 }
-function updateStrokesDisplay(){loadProfileStrokes()} // alias kept for compatibility
+
+function updateStrokesDisplay(){onPlayerChange()} // alias
+
 function onPlayerChange(){
   const pid=document.getElementById('ep').value;
-  const p=S.players.find(x=>x.id===pid);
-  if(p)document.getElementById('ehcp').value=p.handicap||0;
-  loadProfileStrokes();
+  const nine=document.getElementById('enine')?.value||'front';
+  loadProfileStrokes(pid, nine, 'estrokes', 'strokes-hint');
+  // Remove player from partner dropdown to avoid self-selection
+  const pSel2=document.getElementById('epartner');
+  if(pSel2){
+    Array.from(pSel2.options).forEach(opt=>{
+      opt.disabled=(opt.value!==''&&opt.value===pid);
+      if(opt.disabled&&opt.selected){pSel2.value='';onPartnerChange();}
+    });
+  }
+}
+
+function onPartnerChange(){
+  const pid=document.getElementById('epartner').value;
+  const nine=document.getElementById('enine')?.value||'front';
+  const strEl=document.getElementById('epartner-strokes');
+  if(!pid){
+    if(strEl){strEl.value='';strEl.disabled=true;strEl.style.opacity='0.5';}
+    const hint=document.getElementById('partner-strokes-hint');
+    if(hint)hint.textContent='Select a partner first';
+    return;
+  }
+  if(strEl){strEl.disabled=false;strEl.style.opacity='1';}
+  loadProfileStrokes(pid, nine, 'epartner-strokes', 'partner-strokes-hint');
+  // Disable the partner from the main player dropdown
+  const epSel=document.getElementById('ep');
+  if(epSel){
+    Array.from(epSel.options).forEach(opt=>{
+      opt.disabled=(opt.value!==''&&opt.value===pid);
+    });
+  }
 }
 function updateStartHoles(){
   const nine=document.getElementById('enine')?.value||'front';
@@ -1111,35 +1182,67 @@ function setMode(m){
 }
 function startEntry(){
   const pid=document.getElementById('ep').value;
-  const hcp=parseFloat(document.getElementById('ehcp').value)||0;
   const nine=document.getElementById('enine').value;
   const startHole=parseInt(document.getElementById('estart').value);
   if(!pid){alert('Please select a player');return}
 
-  // Strokes: use field value (pre-populated from profile, editable)
+  // Player strokes
   const strokesEl=document.getElementById('estrokes');
-  const strokes9=strokesEl&&strokesEl.value!==''?parseInt(strokesEl.value):hcp9(hcp);
+  const strokes9=strokesEl&&strokesEl.value!==''?parseInt(strokesEl.value):hcp9(S.players.find(x=>x.id===pid)?.handicap||0);
+
+  // Partner (optional)
+  const partnerId=document.getElementById('epartner').value||null;
+  let partnerStrokes9=0;
+  if(partnerId){
+    const psEl=document.getElementById('epartner-strokes');
+    partnerStrokes9=psEl&&psEl.value!==''?parseInt(psEl.value):hcp9(S.players.find(x=>x.id===partnerId)?.handicap||0);
+  }
 
   const week=parseInt(document.getElementById('ew').value);
   const existing=wkS(week);
-  const ep=[...new Set(existing.map(s=>s.playerId))];
-  if(!ep.includes(pid)&&ep.length>=8){alert('Week already has 8 players. Max 8 per week.');return}
+  const ep2=[...new Set(existing.map(s=>s.playerId))];
+  // Check slot availability — need 1 slot for player, possibly 1 more for partner
+  const slotsNeeded=(ep2.includes(pid)?0:1)+(partnerId&&!ep2.includes(partnerId)?1:0);
+  if(ep2.length+slotsNeeded>8){alert('Adding these players would exceed the 8-player limit for this week.');return}
 
   const hls=getHoles(nine);
-  // Build ordered holes starting from startHole, wrapping around
   const si=hls.findIndex(h=>h.h===startHole);
   const ordered=si>=0?[...hls.slice(si),...hls.slice(0,si)]:hls;
 
-  hbhData={holes:ordered,idx:0,scores:{},nine,startHole,hcp,strokes9,playerId:pid,week};
-  // Init scores to par (blank, not par — so user must tap)
-  ordered.forEach(h=>{hbhData.scores[h.h]=null;});
+  // hbhData holds both players' scores
+  hbhData={
+    holes:ordered,idx:0,nine,startHole,week,
+    // Player 1
+    playerId:pid,
+    hcp:S.players.find(x=>x.id===pid)?.handicap||0,
+    strokes9,
+    scores:{},          // hole# → gross score
+    // Player 2 (partner)
+    partnerId,
+    partnerHcp:S.players.find(x=>x.id===partnerId)?.handicap||0,
+    partnerStrokes9,
+    partnerScores:{},   // hole# → gross score
+    // Which player is currently being edited in HBH mode
+    activePlayer:'me'   // 'me' or 'partner'
+  };
+  ordered.forEach(h=>{hbhData.scores[h.h]=null;hbhData.partnerScores[h.h]=null;});
 
   document.getElementById('entry-setup-card').style.display='none';
   document.getElementById('entry-done').style.display='none';
+
   if(entryMode==='hbh'){
     document.getElementById('entry-hbh').style.display='';
     document.getElementById('entry-sc').style.display='none';
-    renderHBH();
+    // Show/hide partner toggle tabs
+    const tabs=document.getElementById('hbh-player-tabs');
+    if(tabs){
+      tabs.style.display=partnerId?'':'none';
+      if(partnerId){
+        document.getElementById('hbh-tab-me-label').textContent=pname(pid);
+        document.getElementById('hbh-tab-partner-label').textContent=pname(partnerId);
+      }
+    }
+    hbhSetActive('me');
   }else{
     document.getElementById('entry-hbh').style.display='none';
     document.getElementById('entry-sc').style.display='';
@@ -1150,23 +1253,44 @@ function startEntry(){
 const SF_COLORS=['var(--txt4)','var(--txt3)','var(--g2)','var(--gold)','var(--gold)'];
 const SF_LABELS=['Double Bogey+ — 0 pts','Bogey — 1 pt','Par — 2 pts','Birdie — 3 pts','Eagle — 4 pts'];
 
+function hbhSetActive(who){
+  hbhData.activePlayer=who;
+  // Update tab styles
+  const tabMe=document.getElementById('hbh-tab-me');
+  const tabPart=document.getElementById('hbh-tab-partner');
+  if(tabMe&&tabPart){
+    tabMe.style.background=who==='me'?'var(--g-grad)':'none';
+    tabMe.style.color=who==='me'?'#fff':'var(--txt3)';
+    tabMe.style.fontWeight=who==='me'?'600':'500';
+    tabPart.style.background=who==='partner'?'var(--g-grad)':'none';
+    tabPart.style.color=who==='partner'?'#fff':'var(--txt3)';
+    tabPart.style.fontWeight=who==='partner'?'600':'500';
+  }
+  renderHBH();
+}
+
 function renderHBH(){
   const h=hbhData.holes[hbhData.idx];
-  const score=hbhData.scores[h.h];           // null = not yet entered
-  const c9=hbhData.strokes9;
+  const isPartner=hbhData.activePlayer==='partner'&&hbhData.partnerId;
+  const c9=isPartner?hbhData.partnerStrokes9:hbhData.strokes9;
   const nine=hbhData.nine;
+  const scoreMap=isPartner?hbhData.partnerScores:hbhData.scores;
+  const score=scoreMap[h.h];
   const strokesOnHole=netStrN(c9,h.hcp,nine);
   const totalHoles=hbhData.holes.length;
-  const enteredCount=hbhData.holes.filter(hh=>hbhData.scores[hh.h]!=null&&hbhData.scores[hh.h]>0).length;
+
+  // Progress: count holes entered for current active player
+  const enteredCount=hbhData.holes.filter(hh=>scoreMap[hh.h]!=null&&scoreMap[hh.h]>0).length;
   const allEntered=enteredCount===totalHoles;
 
-  // Dots
+  // Dots — show both players' progress if partner present
   document.getElementById('hbh-dots').innerHTML=hbhData.holes.map((hh,i)=>{
-    const entered=hbhData.scores[hh.h]!=null&&hbhData.scores[hh.h]>0;
-    return`<div class="hbh-dot ${entered?'done':i===hbhData.idx?'current':''}" onclick="hbhGoTo(${i})" title="Hole ${hh.h}"></div>`;
+    const myDone=hbhData.scores[hh.h]!=null&&hbhData.scores[hh.h]>0;
+    const partnerDone=hbhData.partnerId&&hbhData.partnerScores[hh.h]!=null&&hbhData.partnerScores[hh.h]>0;
+    const activeDone=isPartner?partnerDone:myDone;
+    return`<div class="hbh-dot ${activeDone?'done':i===hbhData.idx?'current':''}" onclick="hbhGoTo(${i})" title="Hole ${hh.h}"></div>`;
   }).join('');
 
-  // Hole info — show position in round (e.g. "Hole 7 · 3 of 9")
   const posInRound=hbhData.idx+1;
   document.getElementById('hbh-hole-num').textContent=`Hole ${h.h}`;
   document.getElementById('hbh-hole-info').textContent=
@@ -1213,100 +1337,168 @@ function renderHBH(){
     }
   }
 
-  // Post button — grayed/disabled until all 9 holes entered
+  // Post button — enabled when ALL holes for BOTH players are entered
+  const myComplete=hbhData.holes.every(hh=>hbhData.scores[hh.h]>0);
+  const partnerComplete=!hbhData.partnerId||hbhData.holes.every(hh=>hbhData.partnerScores[hh.h]>0);
+  const canPost=myComplete&&partnerComplete;
   const postBtn=document.querySelector('.hbh-post');
   if(postBtn){
-    if(allEntered){
-      postBtn.disabled=false;
-      postBtn.style.opacity='1';
-      postBtn.textContent=`Post Score ✓`;
+    postBtn.disabled=!canPost;
+    postBtn.style.opacity=canPost?'1':'0.4';
+    if(canPost){
+      postBtn.textContent='Post Score ✓';
     }else{
-      postBtn.disabled=true;
-      postBtn.style.opacity='0.4';
-      postBtn.textContent=`Post Score (${enteredCount}/${totalHoles} holes)`;
+      const myCount=hbhData.holes.filter(hh=>hbhData.scores[hh.h]>0).length;
+      const pCount=hbhData.partnerId?hbhData.holes.filter(hh=>hbhData.partnerScores[hh.h]>0).length:null;
+      postBtn.textContent=pCount!==null
+        ?`Post (${pname(hbhData.playerId)}: ${myCount}/9 · ${pname(hbhData.partnerId)}: ${pCount}/9)`
+        :`Post Score (${myCount}/${totalHoles} holes)`;
     }
   }
 }
 
 function adjScore(d){
   const h=hbhData.holes[hbhData.idx];
-  const cur=hbhData.scores[h.h]||h.p; // start at par if blank
-  hbhData.scores[h.h]=Math.max(1,Math.min(12,cur+d));
+  const isPartner=hbhData.activePlayer==='partner'&&hbhData.partnerId;
+  const scoreMap=isPartner?hbhData.partnerScores:hbhData.scores;
+  const cur=scoreMap[h.h]||h.p;
+  scoreMap[h.h]=Math.max(1,Math.min(12,cur+d));
   renderHBH();
 }
 function hbhNext(){
   if(hbhData.idx<hbhData.holes.length-1){hbhData.idx++;renderHBH();}
-  // If on last hole, do nothing (Post button handles submission)
 }
 function hbhPrev(){if(hbhData.idx>0){hbhData.idx--;renderHBH()}}
 function hbhGoTo(i){hbhData.idx=i;renderHBH()}
 // ── SCORECARD ──
 function renderSC(){
   const wi=WEEKS.find(w=>w.num===hbhData.week);
-  const c9=hbhData.strokes9;
   const nine=hbhData.nine;
+  const c9=hbhData.strokes9;
+  const pc9=hbhData.partnerStrokes9;
+  const hasPartner=!!hbhData.partnerId;
   document.getElementById('sc-info').innerHTML=
-    `<strong>${pname(hbhData.playerId)}</strong> · Week ${hbhData.week} (${wi?.date}) vs ${wi?.opp} · HCP: ${hbhData.hcp} · <strong>${c9} strokes</strong> · ${nine==='front'?'Front 9':'Back 9'} · Starting hole ${hbhData.startHole}`;
-  const hls=hbhData.holes; // already ordered by starting hole
+    `Week ${hbhData.week} (${wi?.date}) vs ${wi?.opp} · ${nine==='front'?'Front 9':'Back 9'} · Start hole ${hbhData.startHole}<br>`+
+    `<strong>${pname(hbhData.playerId)}</strong> ${c9} str`+
+    (hasPartner?` &nbsp;·&nbsp; <strong>${pname(hbhData.partnerId)}</strong> ${pc9} str`:'');
+
+  const hls=hbhData.holes;
   const frontH=hls.filter(h=>h.h<=9);const backH=hls.filter(h=>h.h>=10);
-  function makeRows(hs,label){
+
+  function makeBlock(hs,label){
     if(!hs.length)return'';
-    const pars=hs.map(h=>`<td style="text-align:center">${h.p}</td>`).join('');
-    const hcps=hs.map(h=>{
-      const str=netStrN(c9,h.hcp,nine);
-      return`<td style="text-align:center;color:${str>0?'var(--g2)':'var(--txt4)'}">${h.hcp}${str>0?'<sup style="color:var(--g2);font-weight:700">'+('*'.repeat(str))+'</sup>':''}`;
-    }).join('');
-    const inps=hs.map(h=>{
-      const str=netStrN(c9,h.hcp,nine);
-      const val=hbhData.scores[h.h]||'';
-      return`<td class="sc-input-cell" style="text-align:center">
-        <input class="sc-score-inp" type="number" id="sci-${h.h}" value="${val}" min="1" max="12" inputmode="numeric" onchange="scUpdate(${h.h},this.value)" style="text-align:center">
-        ${str>0?`<div style="font-size:9px;color:var(--g2);font-weight:700;text-align:center">${'*'.repeat(str)}</div>`:''}
-      </td>`;
-    }).join('');
-    const tot=hs.reduce((s,h)=>s+h.p,0);
-    const totScore=hs.reduce((s,h)=>s+(hbhData.scores[h.h]||0),0);
-    const totNet=hs.reduce((s,h)=>s+(hbhData.scores[h.h]?netScN(hbhData.scores[h.h],c9,h.hcp,nine):0),0);
-    const netCells=hs.map(h=>{
-      const g=hbhData.scores[h.h];if(!g)return`<td style="text-align:center;color:var(--txt4)">–</td>`;
-      const net=netScN(g,c9,h.hcp,nine);const diff=net-h.p;
-      return`<td style="text-align:center;color:${diff<0?'var(--g2)':diff===0?'var(--txt2)':'var(--txt4)'};font-weight:${diff<=0?600:400}">${net}</td>`;
-    }).join('');
-    return`<tr><td class="sc-out-in">${label}</td>${hs.map(h=>`<td style="text-align:center">${h.h}</td>`).join('')}<td class="sc-out-in">${label}</td></tr>
-      <tr><td style="color:var(--txt3);font-size:10px">Yds</td>${hs.map(h=>`<td style="font-size:10px;color:var(--txt3);text-align:center">${h.y}</td>`).join('')}<td></td></tr>
-      <tr><td style="color:var(--txt3);font-size:10px">Par</td>${pars}<td class="sc-out-in">${tot}</td></tr>
-      <tr><td style="color:var(--txt3);font-size:10px">Hcp *=str</td>${hcps}<td></td></tr>
-      <tr><td style="font-weight:600;color:var(--g1)">Gross</td>${inps}<td class="sc-out-in" id="sc-tot-${label}">${totScore||'–'}</td></tr>
-      <tr><td style="font-weight:600;color:var(--g2)">Net</td>${netCells}<td class="sc-out-in" id="sc-nettot-${label}" style="color:var(--g2)">${totNet||'–'}</td></tr>`;
+    const parTot=hs.reduce((s,h)=>s+h.p,0);
+
+    // Header: hole numbers
+    const hdrCells=hs.map(h=>`<th style="text-align:center">${h.h}</th>`).join('');
+    const parCells=hs.map(h=>`<td style="text-align:center;color:var(--txt3);font-size:11px">${h.p}</td>`).join('');
+
+    function playerRows(playerId, c9p, scoreMap, strokesLabel){
+      const hcpCells=hs.map(h=>{
+        const str=netStrN(c9p,h.hcp,nine);
+        return`<td style="text-align:center;font-size:10px;color:${str>0?'var(--g2)':'var(--txt4)'}">${h.hcp}${str>0?'<sup style="font-weight:700">'+('*'.repeat(str))+'</sup>':''}`;
+      }).join('');
+      const inpCells=hs.map(h=>{
+        const str=netStrN(c9p,h.hcp,nine);
+        const val=scoreMap[h.h]||'';
+        const pid=playerId===hbhData.playerId?'p1':'p2';
+        return`<td style="padding:2px;text-align:center">
+          <input class="sc-score-inp" type="number" id="sci-${pid}-${h.h}" value="${val}" min="1" max="12" inputmode="numeric" onchange="scUpdate2('${pid}',${h.h},this.value)" style="text-align:center">
+          ${str>0?`<div style="font-size:9px;color:var(--g2);font-weight:700;text-align:center">${'*'.repeat(str)}</div>`:''}
+        </td>`;
+      }).join('');
+      const totGross=hs.reduce((s,h)=>s+(scoreMap[h.h]||0),0);
+      const totNet=hs.reduce((s,h)=>s+(scoreMap[h.h]?netScN(scoreMap[h.h],c9p,h.hcp,nine):0),0);
+      const netCells=hs.map(h=>{
+        const g=scoreMap[h.h];if(!g)return`<td style="text-align:center;color:var(--txt4);font-size:11px">–</td>`;
+        const net=netScN(g,c9p,h.hcp,nine);const diff=net-h.p;
+        return`<td style="text-align:center;color:${diff<0?'var(--g2)':diff===0?'var(--txt2)':'var(--txt4)'};font-weight:${diff<=0?600:400};font-size:11px">${net}</td>`;
+      }).join('');
+      const pid2=playerId===hbhData.playerId?'p1':'p2';
+      return`<tr style="background:rgba(45,122,79,0.04)">
+          <td style="font-size:10px;color:var(--txt3);white-space:nowrap">Hcp *=str</td>${hcpCells}<td></td></tr>
+        <tr><td style="font-weight:600;font-size:12px;color:var(--g1)">${pname(playerId)}</td>${inpCells}<td class="sc-out-in" id="sc-gross-${pid2}-${label}">${totGross||'–'}</td></tr>
+        <tr><td style="font-size:11px;color:var(--g2)">Net</td>${netCells}<td class="sc-out-in" id="sc-net-${pid2}-${label}" style="color:var(--g2);font-size:11px">${totNet||'–'}</td></tr>`;
+    }
+
+    return`<tr><td class="sc-out-in">${label}</td>${hdrCells}<td class="sc-out-in">${label}</td></tr>
+      <tr><td style="color:var(--txt3);font-size:10px">Yds</td>${hs.map(h=>`<td style="text-align:center;font-size:10px;color:var(--txt3)">${h.y}</td>`).join('')}<td></td></tr>
+      <tr><td style="color:var(--txt3);font-size:10px">Par</td>${parCells}<td class="sc-out-in">${parTot}</td></tr>
+      ${playerRows(hbhData.playerId,c9,hbhData.scores,'Gross')}
+      ${hasPartner?playerRows(hbhData.partnerId,pc9,hbhData.partnerScores,'Gross'):''}`;
   }
-  document.getElementById('sc-table').innerHTML=`<tbody>${makeRows(frontH,'Out')}${makeRows(backH,'In')}</tbody>`;
+
+  document.getElementById('sc-table').innerHTML=`<tbody>${makeBlock(frontH,'Out')}${makeBlock(backH,'In')}</tbody>`;
 }
-function scUpdate(hole,val){
-  const c9=hbhData.strokes9;
+
+function scUpdate2(pid,hole,val){
   const nine=hbhData.nine;
-  hbhData.scores[hole]=parseInt(val)||0;
-  const frontH=hbhData.holes.filter(h=>h.h<=9);const backH=hbhData.holes.filter(h=>h.h>=10);
-  ['Out','In'].forEach((lbl,idx)=>{
-    const hs=idx===0?frontH:backH;
-    const tot=hs.reduce((s,h)=>s+(hbhData.scores[h.h]||0),0);
-    const totNet=hs.reduce((s,h)=>s+(hbhData.scores[h.h]?netScN(hbhData.scores[h.h],c9,h.hcp,nine):0),0);
-    const el=document.getElementById('sc-tot-'+lbl);if(el)el.textContent=tot||'–';
-    const nel=document.getElementById('sc-nettot-'+lbl);if(nel)nel.textContent=totNet||'–';
+  const c9=pid==='p1'?hbhData.strokes9:hbhData.partnerStrokes9;
+  const scoreMap=pid==='p1'?hbhData.scores:hbhData.partnerScores;
+  scoreMap[hole]=parseInt(val)||0;
+  // Update totals for both players
+  ['p1','p2'].forEach(p=>{
+    if(p==='p2'&&!hbhData.partnerId)return;
+    const sm=p==='p1'?hbhData.scores:hbhData.partnerScores;
+    const cp=p==='p1'?hbhData.strokes9:hbhData.partnerStrokes9;
+    const hls=hbhData.holes;
+    const frontH=hls.filter(h=>h.h<=9);const backH=hls.filter(h=>h.h>=10);
+    ['Out','In'].forEach((lbl,idx)=>{
+      const hs=idx===0?frontH:backH;
+      const tot=hs.reduce((s,h)=>s+(sm[h.h]||0),0);
+      const totNet=hs.reduce((s,h)=>s+(sm[h.h]?netScN(sm[h.h],cp,h.hcp,nine):0),0);
+      const gel=document.getElementById(`sc-gross-${p}-${lbl}`);if(gel)gel.textContent=tot||'–';
+      const nel=document.getElementById(`sc-net-${p}-${lbl}`);if(nel)nel.textContent=totNet||'–';
+    });
   });
 }
+
+// Keep old scUpdate as alias for backwards compatibility
+function scUpdate(hole,val){scUpdate2('p1',hole,val)}
+
 // ── POST SCORES ──
 async function postScores(){
-  const holes=Object.entries(hbhData.scores).map(([h,g])=>({hole:parseInt(h),gross:g})).filter(x=>x.gross>0);
-  if(!holes.length){alert('Please enter at least one score');return}
-  const ns={id:Date.now()+'',playerId:hbhData.playerId,week:hbhData.week,nine:hbhData.nine,
-    startHole:hbhData.startHole,handicap:hbhData.hcp,holes,submittedAt:new Date().toISOString()};
-  S.scores=S.scores.filter(s=>!(s.playerId===hbhData.playerId&&s.week===hbhData.week));
-  S.scores.push(ns);await sv('scores');
+  const week=hbhData.week;
+  const nine=hbhData.nine;
+  const saved=[];
+
+  // Save player 1
+  const holes1=Object.entries(hbhData.scores).map(([h,g])=>({hole:parseInt(h),gross:g})).filter(x=>x.gross>0);
+  if(!holes1.length){alert('Please enter scores before posting.');return}
+  const ns1={id:hbhData.playerId+'_w'+week+'_'+Date.now(),
+    playerId:hbhData.playerId,week,nine,startHole:hbhData.startHole,
+    handicap:hbhData.hcp,strokes9:hbhData.strokes9,
+    holes:holes1,submittedAt:new Date().toISOString()};
+  S.scores=S.scores.filter(s=>!(s.playerId===hbhData.playerId&&s.week===week));
+  S.scores.push(ns1);
+  saved.push(ns1);
+
+  // Save partner if present
+  if(hbhData.partnerId){
+    const holes2=Object.entries(hbhData.partnerScores).map(([h,g])=>({hole:parseInt(h),gross:g})).filter(x=>x.gross>0);
+    if(holes2.length){
+      const ns2={id:hbhData.partnerId+'_w'+week+'_'+Date.now(),
+        playerId:hbhData.partnerId,week,nine,startHole:hbhData.startHole,
+        handicap:hbhData.partnerHcp,strokes9:hbhData.partnerStrokes9,
+        holes:holes2,submittedAt:new Date().toISOString()};
+      S.scores=S.scores.filter(s=>!(s.playerId===hbhData.partnerId&&s.week===week));
+      S.scores.push(ns2);
+      saved.push(ns2);
+    }
+  }
+
+  await sv('scores');
+
+  // Build summary
+  const summaryLines=saved.map(ns=>{
+    const sf=rndSF(ns),gross=rndGross(ns),net=rndNet(ns);
+    return`<div style="margin-bottom:4px"><strong>${pname(ns.playerId)}</strong> — Gross: ${gross} · Net: ${net} · SF: <span class="tg">${sf} pts</span></div>`;
+  }).join('');
+
   document.getElementById('entry-hbh').style.display='none';
   document.getElementById('entry-sc').style.display='none';
   document.getElementById('entry-done').style.display='';
-  document.getElementById('entry-done-summary').innerHTML=
-    `${pname(hbhData.playerId)}<br>Gross: <strong>${rndGross(ns)}</strong> · Net: <strong>${rndNet(ns)}</strong> · Stableford: <strong class="tg">${rndSF(ns)} pts</strong>`;
+  document.getElementById('entry-done-summary').innerHTML=summaryLines;
 }
 function resetEntry(){
   document.getElementById('entry-setup-card').style.display='';
