@@ -174,6 +174,12 @@ tbody tr:hover td{background:var(--surface2)}
 .hbh-pm{width:56px;height:56px;border-radius:50%;background:var(--surface2);border:2px solid var(--border);font-size:28px;font-weight:300;color:var(--txt2);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;-webkit-user-select:none;user-select:none}
 .hbh-pm:hover{border-color:var(--g2);color:var(--g1);background:rgba(45,122,79,0.06)}
 .hbh-pm:active{transform:scale(.92)}
+.stat-btn{background:var(--surface2);border:1.5px solid var(--border);color:var(--txt2);font-family:'Inter',sans-serif;font-size:11px;font-weight:500;padding:6px 10px;border-radius:8px;cursor:pointer;transition:all .15s;white-space:nowrap;-webkit-tap-highlight-color:transparent}
+.stat-btn:hover{border-color:var(--g2);color:var(--g1)}
+.stat-btn.active{background:var(--g1);border-color:var(--g1);color:#fff;font-weight:600}
+.stat-btn-sand.active{background:#b8860b;border-color:#b8860b;color:#fff}
+.stat-btn-pen.active{background:var(--red);border-color:var(--red);color:#fff}
+.stat-btn:active{transform:scale(.94)}
 .hbh-nav{display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--border);padding-top:14px;gap:10px}
 .hbh-player-panel{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px 10px;text-align:center;display:flex;flex-direction:column;align-items:center}
 .hbh-player-name{font-family:'Bebas Neue',sans-serif;font-size:16px;color:var(--g1);letter-spacing:1px;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
@@ -380,12 +386,26 @@ tbody tr:hover td{background:var(--surface2)}
 
     <div class="divider"></div>
 
+    <div class="divider"></div>
+
     <!-- Entry mode -->
     <div style="font-family:'Bebas Neue',sans-serif;font-size:13px;color:var(--g1);letter-spacing:1px;margin-bottom:8px">Entry Mode</div>
     <div style="display:flex;gap:8px;margin-bottom:12px">
       <button class="btn" id="mode-hbh-btn" onclick="setMode('hbh')">Hole by Hole</button>
       <button class="btn-out btn" id="mode-sc-btn" onclick="setMode('sc')">Scorecard View</button>
     </div>
+
+    <!-- Track Stats toggle -->
+    <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;margin-bottom:12px;cursor:pointer" onclick="toggleTrackStats()">
+      <div id="stats-toggle-pip" style="width:36px;height:20px;border-radius:10px;background:var(--border);position:relative;flex-shrink:0;transition:background .2s">
+        <div id="stats-toggle-knob" style="width:16px;height:16px;border-radius:50%;background:#fff;position:absolute;top:2px;left:2px;transition:left .2s;box-shadow:0 1px 3px rgba(0,0,0,0.2)"></div>
+      </div>
+      <div>
+        <div style="font-size:13px;font-weight:600;color:var(--txt)">Track Stats</div>
+        <div style="font-size:11px;color:var(--txt3)">Record fairways, greens & putts per hole (your score only)</div>
+      </div>
+    </div>
+
     <button class="btn" onclick="startEntry()" style="width:100%;justify-content:center;padding:12px;font-size:14px">Start Round →</button>
   </div>
 
@@ -437,6 +457,50 @@ tbody tr:hover td{background:var(--surface2)}
         <div class="hbh-sf-sm" id="hbh-sf-partner"></div>
       </div>
 
+    </div>
+
+    <!-- Stats panel (shown only when track stats is on, only for player 1) -->
+    <div id="hbh-stats-panel" style="display:none;margin-bottom:12px">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:13px;color:var(--g1);letter-spacing:1px;margin-bottom:8px">Stats — <span id="hbh-stats-player-name" style="color:var(--g2)"></span></div>
+
+      <!-- Fairway (hide on par 3s) -->
+      <div id="hbh-stats-fairway-row" style="margin-bottom:10px">
+        <div style="font-size:11px;font-weight:600;color:var(--txt3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px">Fairway</div>
+        <div style="display:flex;gap:5px;flex-wrap:wrap">
+          <button class="stat-btn" data-stat="fw" data-val="hit" onclick="setStat('fw','hit',this)">✓ Hit</button>
+          <button class="stat-btn" data-stat="fw" data-val="left" onclick="setStat('fw','left',this)">← Left</button>
+          <button class="stat-btn" data-stat="fw" data-val="right" onclick="setStat('fw','right',this)">→ Right</button>
+          <button class="stat-btn" data-stat="fw" data-val="short" onclick="setStat('fw','short',this)">↓ Short</button>
+          <button class="stat-btn" data-stat="fw" data-val="long" onclick="setStat('fw','long',this)">↑ Long</button>
+          <button class="stat-btn stat-btn-sand" data-stat="fw" data-val="bunker" onclick="setStat('fw','bunker',this)">⛱ Bunker</button>
+          <button class="stat-btn stat-btn-pen" data-stat="fw" data-val="penalty" onclick="setStat('fw','penalty',this)">⚠ Penalty</button>
+        </div>
+      </div>
+
+      <!-- Green in Regulation -->
+      <div style="margin-bottom:10px">
+        <div style="font-size:11px;font-weight:600;color:var(--txt3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px">Green in Regulation</div>
+        <div style="display:flex;gap:5px;flex-wrap:wrap">
+          <button class="stat-btn" data-stat="gir" data-val="hit" onclick="setStat('gir','hit',this)">✓ Hit</button>
+          <button class="stat-btn" data-stat="gir" data-val="left" onclick="setStat('gir','left',this)">← Left</button>
+          <button class="stat-btn" data-stat="gir" data-val="right" onclick="setStat('gir','right',this)">→ Right</button>
+          <button class="stat-btn" data-stat="gir" data-val="short" onclick="setStat('gir','short',this)">↓ Short</button>
+          <button class="stat-btn" data-stat="gir" data-val="long" onclick="setStat('gir','long',this)">↑ Long</button>
+          <button class="stat-btn stat-btn-sand" data-stat="gir" data-val="bunker" onclick="setStat('gir','bunker',this)">⛱ Bunker</button>
+          <button class="stat-btn stat-btn-pen" data-stat="gir" data-val="penalty" onclick="setStat('gir','penalty',this)">⚠ Penalty</button>
+        </div>
+      </div>
+
+      <!-- Putts -->
+      <div>
+        <div style="font-size:11px;font-weight:600;color:var(--txt3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px">Putts</div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <button class="hbh-pm" style="width:38px;height:38px;font-size:20px" onclick="adjPutts(-1)">−</button>
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:36px;color:var(--g1);min-width:32px;text-align:center;line-height:1" id="hbh-putts-display">2</div>
+          <button class="hbh-pm" style="width:38px;height:38px;font-size:20px" onclick="adjPutts(1)">+</button>
+          <div style="font-size:11px;color:var(--txt3)">putts</div>
+        </div>
+      </div>
     </div>
 
     <!-- Nav -->
@@ -722,6 +786,7 @@ let S={players:[],scores:[],leagueTeams:[],gbTargets:{},courses:[],lockedWeeks:[
        i1:125,i2:75,i3:50,r1:75,r2:50,r3:25}};
 let currentPlayer=null; // {id,first,last,handicap}
 let entryMode='hbh';
+let trackStats=false;   // whether to collect fairway/GIR/putts stats this round
 let hbhData={holes:[],idx:0,scores:{},nine:'front',startHole:1,hcp:0};
 
 // ═══ FIREBASE INIT ═══
@@ -1158,6 +1223,15 @@ function renderDashTiles(){
 }
 
 // ═══ ENTER SCORES ═══
+// ── STATS TOGGLE ──
+function toggleTrackStats(){
+  trackStats=!trackStats;
+  const pip=document.getElementById('stats-toggle-pip');
+  const knob=document.getElementById('stats-toggle-knob');
+  if(pip)pip.style.background=trackStats?'var(--g2)':'var(--border)';
+  if(knob)knob.style.left=trackStats?'18px':'2px';
+}
+
 function initEntry(){
   pSel('ew',WEEKS.map(w=>({v:w.num,l:`Week ${w.num} (${w.date}) vs ${w.opp}${S.lockedWeeks.includes(w.num)?' 🔒 LOCKED':''}`})));
   // Player dropdown — exclude no-selection option since we always need a player
@@ -1287,8 +1361,15 @@ function startEntry(){
     partnerStrokes9,
     partnerScores:{},
     partnerTouched:new Set(),  // holes partner has intentionally adjusted
+    // Stats (player 1 only, optional)
+    trackStats,
+    stats:{},  // hole# → {fw, gir, putts}
   };
-  ordered.forEach(h=>{hbhData.scores[h.h]=h.p; hbhData.partnerScores[h.h]=h.p;});
+  ordered.forEach(h=>{
+    hbhData.scores[h.h]=h.p;
+    hbhData.partnerScores[h.h]=h.p;
+    hbhData.stats[h.h]={fw:null,gir:null,putts:2}; // default 2 putts
+  });
 
   document.getElementById('entry-setup-card').style.display='none';
   document.getElementById('entry-done').style.display='none';
@@ -1344,6 +1425,8 @@ function renderHBH(){
   if(hasPartner){
     renderHBHPlayer('partner', h, nine, hbhData.partnerId, hbhData.partnerStrokes9, hbhData.partnerScores);
   }
+  // Stats panel (player 1 only)
+  renderStatsPanel(h);
 
   // Post button — enabled only when every hole has been intentionally touched by each player
   const myAll=hbhData.holes.every(hh=>hbhData.touched.has(hh.h));
@@ -1430,6 +1513,56 @@ function hbhSetActive(){}  // no-op — kept so any stale references don't crash
 function hbhNext(){if(hbhData.idx<hbhData.holes.length-1){hbhData.idx++;renderHBH();}}
 function hbhPrev(){if(hbhData.idx>0){hbhData.idx--;renderHBH()}}
 function hbhGoTo(i){hbhData.idx=i;renderHBH()}
+
+// ── STATS PANEL ──
+function renderStatsPanel(h){
+  const panel=document.getElementById('hbh-stats-panel');
+  if(!panel)return;
+  if(!hbhData.trackStats){panel.style.display='none';return;}
+  panel.style.display='';
+
+  // Player name label
+  const nameEl=document.getElementById('hbh-stats-player-name');
+  if(nameEl)nameEl.textContent=pname(hbhData.playerId);
+
+  // Hide fairway on par 3s (no fairway to hit)
+  const fwRow=document.getElementById('hbh-stats-fairway-row');
+  if(fwRow)fwRow.style.display=h.p===3?'none':'';
+
+  const st=hbhData.stats[h.h]||{fw:null,gir:null,putts:2};
+
+  // Update fairway buttons
+  panel.querySelectorAll('[data-stat="fw"]').forEach(btn=>{
+    btn.classList.toggle('active',btn.dataset.val===st.fw);
+  });
+  // Update GIR buttons
+  panel.querySelectorAll('[data-stat="gir"]').forEach(btn=>{
+    btn.classList.toggle('active',btn.dataset.val===st.gir);
+  });
+  // Putts
+  const puEl=document.getElementById('hbh-putts-display');
+  if(puEl)puEl.textContent=st.putts??2;
+}
+
+function setStat(statKey, val, btn){
+  const h=hbhData.holes[hbhData.idx];
+  if(!hbhData.stats[h.h])hbhData.stats[h.h]={fw:null,gir:null,putts:2};
+  const current=hbhData.stats[h.h][statKey];
+  // Toggle: clicking active selection clears it
+  hbhData.stats[h.h][statKey]=(current===val)?null:val;
+  // Update button styles immediately
+  document.querySelectorAll(`[data-stat="${statKey}"]`).forEach(b=>{
+    b.classList.toggle('active',b.dataset.val===hbhData.stats[h.h][statKey]);
+  });
+}
+
+function adjPutts(d){
+  const h=hbhData.holes[hbhData.idx];
+  if(!hbhData.stats[h.h])hbhData.stats[h.h]={fw:null,gir:null,putts:2};
+  hbhData.stats[h.h].putts=Math.max(0,Math.min(8,(hbhData.stats[h.h].putts??2)+d));
+  const el=document.getElementById('hbh-putts-display');
+  if(el)el.textContent=hbhData.stats[h.h].putts;
+}
 // ── SCORECARD ──
 function renderSC(){
   const wi=WEEKS.find(w=>w.num===hbhData.week);
@@ -1592,12 +1725,23 @@ async function postScores(){
   const nine=hbhData.nine;
   const saved=[];
 
-  // Save player 1
-  const holes1=Object.entries(hbhData.scores).map(([h,g])=>({hole:parseInt(h),gross:g})).filter(x=>x.gross>0);
+  // Save player 1 — embed stats per hole if tracking
+  const holes1=Object.entries(hbhData.scores).map(([h,g])=>{
+    const holeNum=parseInt(h);
+    const entry={hole:holeNum,gross:g};
+    if(hbhData.trackStats&&hbhData.stats[holeNum]){
+      const st=hbhData.stats[holeNum];
+      if(st.fw)entry.fw=st.fw;
+      if(st.gir)entry.gir=st.gir;
+      if(st.putts!=null)entry.putts=st.putts;
+    }
+    return entry;
+  }).filter(x=>x.gross>0);
   if(!holes1.length){alert('Please enter scores before posting.');return}
   const ns1={id:hbhData.playerId+'_w'+week+'_'+Date.now(),
     playerId:hbhData.playerId,week,nine,startHole:hbhData.startHole,
     handicap:hbhData.hcp,strokes9:hbhData.strokes9,
+    statsTracked:hbhData.trackStats||false,
     holes:holes1,submittedAt:new Date().toISOString()};
   S.scores=S.scores.filter(s=>!(s.playerId===hbhData.playerId&&s.week===week));
   S.scores.push(ns1);
@@ -1620,9 +1764,21 @@ async function postScores(){
   await sv('scores');
 
   // Build summary
-  const summaryLines=saved.map(ns=>{
+  const summaryLines=saved.map((ns,idx)=>{
     const sf=rndSF(ns),gross=rndGross(ns),net=rndNet(ns);
-    return`<div style="margin-bottom:4px"><strong>${pname(ns.playerId)}</strong> — Gross: ${gross} · Net: ${net} · SF: <span class="tg">${sf} pts</span></div>`;
+    let statLine='';
+    if(idx===0&&hbhData.trackStats){
+      const fwHit=ns.holes.filter(h=>h.fw==='hit').length;
+      const fwTotal=ns.holes.filter(h=>h.fw).length;
+      const girHit=ns.holes.filter(h=>h.gir==='hit').length;
+      const girTotal=ns.holes.filter(h=>h.gir).length;
+      const totalPutts=ns.holes.reduce((s,h)=>s+(h.putts!=null?h.putts:0),0);
+      const puttHoles=ns.holes.filter(h=>h.putts!=null).length;
+      statLine=`<div style="font-size:11px;color:var(--txt3);margin-top:4px">`+
+        (fwTotal?`FIR: ${fwHit}/${fwTotal} · `:'')+(girTotal?`GIR: ${girHit}/${girTotal} · `:'')+
+        (puttHoles?`Putts: ${totalPutts}`:'')+'</div>';
+    }
+    return`<div style="margin-bottom:4px"><strong>${pname(ns.playerId)}</strong> — Gross: ${gross} · Net: ${net} · SF: <span class="tg">${sf} pts</span>${statLine}</div>`;
   }).join('');
 
   document.getElementById('entry-hbh').style.display='none';
@@ -1640,6 +1796,12 @@ function resetEntry(){
   if(c)c.innerHTML='';
   const t=document.getElementById('sc-table');
   if(t)t.style.display='';
+  // Reset stats toggle
+  trackStats=false;
+  const pip=document.getElementById('stats-toggle-pip');
+  const knob=document.getElementById('stats-toggle-knob');
+  if(pip)pip.style.background='var(--border)';
+  if(knob)knob.style.left='2px';
   initEntry();
 }
 
