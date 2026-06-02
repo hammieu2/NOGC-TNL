@@ -467,13 +467,13 @@ tbody tr:hover td{background:var(--surface2)}
       <div id="hbh-stats-fairway-row" style="margin-bottom:10px">
         <div style="font-size:11px;font-weight:600;color:var(--txt3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px">Fairway</div>
         <div style="display:flex;gap:5px;flex-wrap:wrap">
-          <button class="stat-btn" data-stat="fw" data-val="hit" onclick="setStat('fw','hit',this)">✓ Hit</button>
-          <button class="stat-btn" data-stat="fw" data-val="left" onclick="setStat('fw','left',this)">← Left</button>
-          <button class="stat-btn" data-stat="fw" data-val="right" onclick="setStat('fw','right',this)">→ Right</button>
-          <button class="stat-btn" data-stat="fw" data-val="short" onclick="setStat('fw','short',this)">↓ Short</button>
-          <button class="stat-btn" data-stat="fw" data-val="long" onclick="setStat('fw','long',this)">↑ Long</button>
-          <button class="stat-btn stat-btn-sand" data-stat="fw" data-val="bunker" onclick="setStat('fw','bunker',this)">⛱ Bunker</button>
-          <button class="stat-btn stat-btn-pen" data-stat="fw" data-val="penalty" onclick="setStat('fw','penalty',this)">⚠ Penalty</button>
+          <button class="stat-btn" data-stat="fw" data-val="hit" onclick="setStat('fw','hit')">✓ Hit</button>
+          <button class="stat-btn" data-stat="fw" data-val="left" onclick="setStat('fw','left')">← Left</button>
+          <button class="stat-btn" data-stat="fw" data-val="right" onclick="setStat('fw','right')">→ Right</button>
+          <button class="stat-btn" data-stat="fw" data-val="short" onclick="setStat('fw','short')">↓ Short</button>
+          <button class="stat-btn" data-stat="fw" data-val="long" onclick="setStat('fw','long')">↑ Long</button>
+          <button class="stat-btn stat-btn-sand" data-stat="fw" data-val="bunker" onclick="setStat('fw','bunker')">⛱ Bunker</button>
+          <button class="stat-btn stat-btn-pen" data-stat="fw" data-val="penalty" onclick="setStat('fw','penalty')">⚠ Penalty</button>
         </div>
       </div>
 
@@ -481,13 +481,13 @@ tbody tr:hover td{background:var(--surface2)}
       <div style="margin-bottom:10px">
         <div style="font-size:11px;font-weight:600;color:var(--txt3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px">Green in Regulation</div>
         <div style="display:flex;gap:5px;flex-wrap:wrap">
-          <button class="stat-btn" data-stat="gir" data-val="hit" onclick="setStat('gir','hit',this)">✓ Hit</button>
-          <button class="stat-btn" data-stat="gir" data-val="left" onclick="setStat('gir','left',this)">← Left</button>
-          <button class="stat-btn" data-stat="gir" data-val="right" onclick="setStat('gir','right',this)">→ Right</button>
-          <button class="stat-btn" data-stat="gir" data-val="short" onclick="setStat('gir','short',this)">↓ Short</button>
-          <button class="stat-btn" data-stat="gir" data-val="long" onclick="setStat('gir','long',this)">↑ Long</button>
-          <button class="stat-btn stat-btn-sand" data-stat="gir" data-val="bunker" onclick="setStat('gir','bunker',this)">⛱ Bunker</button>
-          <button class="stat-btn stat-btn-pen" data-stat="gir" data-val="penalty" onclick="setStat('gir','penalty',this)">⚠ Penalty</button>
+          <button class="stat-btn" data-stat="gir" data-val="hit" onclick="setStat('gir','hit')">✓ Hit</button>
+          <button class="stat-btn" data-stat="gir" data-val="left" onclick="setStat('gir','left')">← Left</button>
+          <button class="stat-btn" data-stat="gir" data-val="right" onclick="setStat('gir','right')">→ Right</button>
+          <button class="stat-btn" data-stat="gir" data-val="short" onclick="setStat('gir','short')">↓ Short</button>
+          <button class="stat-btn" data-stat="gir" data-val="long" onclick="setStat('gir','long')">↑ Long</button>
+          <button class="stat-btn stat-btn-sand" data-stat="gir" data-val="bunker" onclick="setStat('gir','bunker')">⛱ Bunker</button>
+          <button class="stat-btn stat-btn-pen" data-stat="gir" data-val="penalty" onclick="setStat('gir','penalty')">⚠ Penalty</button>
         </div>
       </div>
 
@@ -527,11 +527,12 @@ tbody tr:hover td{background:var(--surface2)}
     </div>
   </div>
 
-  <!-- Confirmation -->
   <div id="entry-done" style="display:none">
-    <div class="card" style="text-align:center;padding:28px">
-      <div style="width:52px;height:52px;border-radius:50%;background:rgba(45,122,79,0.1);border:2px solid var(--g2);display:flex;align-items:center;justify-content:center;margin:0 auto 12px;font-size:22px;color:var(--g2)">✓</div>
-      <div style="font-family:'Bebas Neue',sans-serif;font-size:24px;color:var(--g1);letter-spacing:2px;margin-bottom:6px">Score Posted!</div>
+    <div class="card">
+      <div style="text-align:center;margin-bottom:16px">
+        <div style="width:52px;height:52px;border-radius:50%;background:rgba(45,122,79,0.1);border:2px solid var(--g2);display:flex;align-items:center;justify-content:center;margin:0 auto 10px;font-size:22px;color:var(--g2)">✓</div>
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:24px;color:var(--g1);letter-spacing:2px">Score Posted!</div>
+      </div>
       <div id="entry-done-summary" style="font-size:13px;color:var(--txt2);line-height:1.9;margin-bottom:14px"></div>
       <div class="btn-row" style="justify-content:center">
         <button class="btn" onclick="resetEntry()">Enter Another</button>
@@ -1232,8 +1233,24 @@ function toggleTrackStats(){
   if(knob)knob.style.left=trackStats?'18px':'2px';
 }
 
+function getActiveWeek(){
+  // Active week = first week that is NOT locked, starting from week after the last locked week
+  // If no weeks are locked, default to week 1
+  // If all weeks locked, return last week
+  const locked=S.lockedWeeks||[];
+  if(!locked.length)return WEEKS[0].num;
+  const maxLocked=Math.max(...locked);
+  const next=WEEKS.find(w=>w.num>maxLocked&&!locked.includes(w.num));
+  if(next)return next.num;
+  // All weeks after maxLocked are also locked — return last week
+  return WEEKS[WEEKS.length-1].num;
+}
+
 function initEntry(){
   pSel('ew',WEEKS.map(w=>({v:w.num,l:`Week ${w.num} (${w.date}) vs ${w.opp}${S.lockedWeeks.includes(w.num)?' 🔒 LOCKED':''}`})));
+  // Set default to active week
+  const ewEl=document.getElementById('ew');
+  if(ewEl)ewEl.value=getActiveWeek();
   // Player dropdown — exclude no-selection option since we always need a player
   pSel('ep',S.players.map(p=>({v:p.id,l:`${pname(p.id)}`})));
   // Partner dropdown — includes "no partner" option
@@ -1368,7 +1385,7 @@ function startEntry(){
   ordered.forEach(h=>{
     hbhData.scores[h.h]=h.p;
     hbhData.partnerScores[h.h]=h.p;
-    hbhData.stats[h.h]={fw:null,gir:null,putts:2}; // default 2 putts
+    hbhData.stats[h.h]={fw:[],gir:[],putts:2}; // fw/gir are now arrays (multi-select)
   });
 
   document.getElementById('entry-setup-card').style.display='none';
@@ -1521,38 +1538,65 @@ function renderStatsPanel(h){
   if(!hbhData.trackStats){panel.style.display='none';return;}
   panel.style.display='';
 
-  // Player name label
   const nameEl=document.getElementById('hbh-stats-player-name');
   if(nameEl)nameEl.textContent=pname(hbhData.playerId);
 
-  // Hide fairway on par 3s (no fairway to hit)
+  // Hide fairway on par 3s
   const fwRow=document.getElementById('hbh-stats-fairway-row');
   if(fwRow)fwRow.style.display=h.p===3?'none':'';
 
-  const st=hbhData.stats[h.h]||{fw:null,gir:null,putts:2};
+  if(!hbhData.stats[h.h])hbhData.stats[h.h]={fw:[],gir:[],putts:2};
+  const st=hbhData.stats[h.h];
+  const fwArr=Array.isArray(st.fw)?st.fw:[];
+  const girArr=Array.isArray(st.gir)?st.gir:[];
 
-  // Update fairway buttons
+  // Update fairway buttons (multi-select)
   panel.querySelectorAll('[data-stat="fw"]').forEach(btn=>{
-    btn.classList.toggle('active',btn.dataset.val===st.fw);
+    btn.classList.toggle('active',fwArr.includes(btn.dataset.val));
   });
-  // Update GIR buttons
+  // Update GIR buttons (multi-select)
   panel.querySelectorAll('[data-stat="gir"]').forEach(btn=>{
-    btn.classList.toggle('active',btn.dataset.val===st.gir);
+    btn.classList.toggle('active',girArr.includes(btn.dataset.val));
   });
   // Putts
   const puEl=document.getElementById('hbh-putts-display');
   if(puEl)puEl.textContent=st.putts??2;
 }
 
-function setStat(statKey, val, btn){
+function setStat(statKey, val){
   const h=hbhData.holes[hbhData.idx];
-  if(!hbhData.stats[h.h])hbhData.stats[h.h]={fw:null,gir:null,putts:2};
-  const current=hbhData.stats[h.h][statKey];
-  // Toggle: clicking active selection clears it
-  hbhData.stats[h.h][statKey]=(current===val)?null:val;
-  // Update button styles immediately
+  if(!hbhData.stats[h.h])hbhData.stats[h.h]={fw:[],gir:[],putts:2};
+  const st=hbhData.stats[h.h];
+
+  // fw and gir are multi-select arrays
+  if(statKey==='fw'||statKey==='gir'){
+    const arr=Array.isArray(st[statKey])?[...st[statKey]]:[];
+    const idx=arr.indexOf(val);
+    if(idx>=0){
+      // Already selected — deselect it
+      arr.splice(idx,1);
+      // Special rule: if deselecting 'hit', that's fine
+      // If selecting 'hit', clear all misses; if selecting a miss, clear 'hit'
+    }else{
+      // Selecting — apply mutual exclusivity rules:
+      // 'hit' is exclusive with miss options; miss options can combine with each other
+      if(val==='hit'){
+        arr.length=0; // hit clears everything else
+        arr.push('hit');
+      }else{
+        // Remove 'hit' if a miss option is chosen
+        const hitIdx=arr.indexOf('hit');
+        if(hitIdx>=0)arr.splice(hitIdx,1);
+        arr.push(val);
+      }
+    }
+    st[statKey]=arr;
+  }
+
+  // Re-render buttons
   document.querySelectorAll(`[data-stat="${statKey}"]`).forEach(b=>{
-    b.classList.toggle('active',b.dataset.val===hbhData.stats[h.h][statKey]);
+    const arr=Array.isArray(st[statKey])?st[statKey]:[];
+    b.classList.toggle('active',arr.includes(b.dataset.val));
   });
 }
 
@@ -1731,8 +1775,9 @@ async function postScores(){
     const entry={hole:holeNum,gross:g};
     if(hbhData.trackStats&&hbhData.stats[holeNum]){
       const st=hbhData.stats[holeNum];
-      if(st.fw)entry.fw=st.fw;
-      if(st.gir)entry.gir=st.gir;
+      // fw and gir are arrays; save as array (may be empty)
+      if(Array.isArray(st.fw)&&st.fw.length)entry.fw=st.fw;
+      if(Array.isArray(st.gir)&&st.gir.length)entry.gir=st.gir;
       if(st.putts!=null)entry.putts=st.putts;
     }
     return entry;
@@ -1763,28 +1808,128 @@ async function postScores(){
 
   await sv('scores');
 
-  // Build summary
-  const summaryLines=saved.map((ns,idx)=>{
-    const sf=rndSF(ns),gross=rndGross(ns),net=rndNet(ns);
-    let statLine='';
-    if(idx===0&&hbhData.trackStats){
-      const fwHit=ns.holes.filter(h=>h.fw==='hit').length;
-      const fwTotal=ns.holes.filter(h=>h.fw).length;
-      const girHit=ns.holes.filter(h=>h.gir==='hit').length;
-      const girTotal=ns.holes.filter(h=>h.gir).length;
-      const totalPutts=ns.holes.reduce((s,h)=>s+(h.putts!=null?h.putts:0),0);
-      const puttHoles=ns.holes.filter(h=>h.putts!=null).length;
-      statLine=`<div style="font-size:11px;color:var(--txt3);margin-top:4px">`+
-        (fwTotal?`FIR: ${fwHit}/${fwTotal} · `:'')+(girTotal?`GIR: ${girHit}/${girTotal} · `:'')+
-        (puttHoles?`Putts: ${totalPutts}`:'')+'</div>';
+  // Build full round summary
+  const ns=saved[0]; // primary player score record
+  const gross=rndGross(ns),net=rndNet(ns),sf=rndSF(ns);
+
+  // Stats calculations (only if tracked)
+  let statsHTML='';
+  if(hbhData.trackStats&&ns.statsTracked){
+    const activeHoles=ns.holes;
+    // Fairways (exclude par 3s)
+    const fwHoles=activeHoles.filter(h=>{
+      const hd=hbhData.holes.find(x=>x.h===h.hole);
+      return hd&&hd.p!==3;
+    });
+    const fwHit=fwHoles.filter(h=>Array.isArray(h.fw)&&h.fw.includes('hit')).length;
+    const fwPct=fwHoles.length?Math.round(fwHit/fwHoles.length*100):0;
+
+    // GIR
+    const girHit=activeHoles.filter(h=>Array.isArray(h.gir)&&h.gir.includes('hit')).length;
+    const girPct=activeHoles.length?Math.round(girHit/activeHoles.length*100):0;
+
+    // Putts
+    const puttHoles=activeHoles.filter(h=>h.putts!=null);
+    const totalPutts=puttHoles.reduce((s,h)=>s+h.putts,0);
+    const putts1=puttHoles.filter(h=>h.putts===1).length;
+    const putts2=puttHoles.filter(h=>h.putts===2).length;
+    const putts3plus=puttHoles.filter(h=>h.putts>=3).length;
+
+    // Miss direction labels for fairway/GIR misses
+    function missLabel(arr){
+      if(!Array.isArray(arr)||arr.length===0)return'';
+      const labels={left:'Left',right:'Right',short:'Short',long:'Long',bunker:'Bunker',penalty:'Penalty'};
+      return arr.filter(v=>v!=='hit').map(v=>labels[v]||v).join(' + ');
     }
-    return`<div style="margin-bottom:4px"><strong>${pname(ns.playerId)}</strong> — Gross: ${gross} · Net: ${net} · SF: <span class="tg">${sf} pts</span>${statLine}</div>`;
-  }).join('');
+
+    // Hole-by-hole stat rows
+    const holeRows=activeHoles.map(h=>{
+      const hd=hbhData.holes.find(x=>x.h===h.hole);
+      const par=hd?.p||4;
+      const isP3=par===3;
+      const fwStr=isP3?'—':(Array.isArray(h.fw)&&h.fw.includes('hit')?'✓ Hit':(Array.isArray(h.fw)&&h.fw.length?missLabel(h.fw):'–'));
+      const girStr=Array.isArray(h.gir)&&h.gir.includes('hit')?'✓ Hit':(Array.isArray(h.gir)&&h.gir.length?missLabel(h.gir):'–');
+      const puttStr=h.putts!=null?h.putts:'–';
+      const diff=h.gross-par;
+      const diffStr=diff===0?'E':diff>0?'+'+diff:''+diff;
+      return`<tr>
+        <td style="font-weight:600;text-align:center">${h.hole}</td>
+        <td style="text-align:center;color:var(--txt3)">${par}</td>
+        <td style="text-align:center;font-weight:600;color:${diff<0?'var(--gold)':diff===0?'var(--g2)':'var(--txt2)'}">${h.gross} <span style="font-size:10px;font-weight:400;color:var(--txt3)">(${diffStr})</span></td>
+        <td style="text-align:center;font-size:11px;color:${Array.isArray(h.fw)&&h.fw.includes('hit')?'var(--g2)':isP3?'var(--txt4)':'var(--txt3)'}">${fwStr}</td>
+        <td style="text-align:center;font-size:11px;color:${Array.isArray(h.gir)&&h.gir.includes('hit')?'var(--g2)':'var(--txt3)'}">${girStr}</td>
+        <td style="text-align:center;color:${puttStr===1?'var(--g2)':puttStr>=3?'var(--red)':'var(--txt2)'};font-weight:${puttStr<=1?600:400}">${puttStr}</td>
+      </tr>`;
+    }).join('');
+
+    statsHTML=`
+      <div class="divider"></div>
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:16px;color:var(--g1);letter-spacing:1.5px;margin-bottom:10px">Round Stats</div>
+
+      <!-- Summary stat boxes -->
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px">
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px;text-align:center">
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:24px;color:var(--g1)">${fwHit}/${fwHoles.length}</div>
+          <div style="font-size:10px;color:var(--txt3);text-transform:uppercase;letter-spacing:.5px">Fairways</div>
+          <div style="font-size:12px;font-weight:600;color:var(--g2)">${fwPct}%</div>
+        </div>
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px;text-align:center">
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:24px;color:var(--g1)">${girHit}/${activeHoles.length}</div>
+          <div style="font-size:10px;color:var(--txt3);text-transform:uppercase;letter-spacing:.5px">GIR</div>
+          <div style="font-size:12px;font-weight:600;color:var(--g2)">${girPct}%</div>
+        </div>
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px;text-align:center">
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:24px;color:var(--g1)">${totalPutts}</div>
+          <div style="font-size:10px;color:var(--txt3);text-transform:uppercase;letter-spacing:.5px">Putts</div>
+          <div style="font-size:11px;color:var(--txt3)">${putts1} one · ${putts2} two · ${putts3plus} 3+</div>
+        </div>
+      </div>
+
+      <!-- Hole-by-hole breakdown -->
+      <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;font-size:12px;min-width:340px">
+          <thead><tr>
+            <th style="text-align:center;width:28px">#</th>
+            <th style="text-align:center">Par</th>
+            <th style="text-align:center">Score</th>
+            <th style="text-align:center">Fairway</th>
+            <th style="text-align:center">GIR</th>
+            <th style="text-align:center">Putts</th>
+          </tr></thead>
+          <tbody>${holeRows}</tbody>
+        </table>
+      </div>`;
+  }
+
+  // Partner line if present
+  const partnerLine=saved.length>1
+    ?`<div style="margin-top:6px"><strong>${pname(saved[1].playerId)}</strong> — Gross: ${rndGross(saved[1])} · Net: ${rndNet(saved[1])} · SF: <span class="tg">${rndSF(saved[1])} pts</span></div>`:'';
+
+  const summaryHTML=`
+    <div style="text-align:left">
+      <div style="margin-bottom:6px"><strong>${pname(ns.playerId)}</strong></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:6px">
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px;text-align:center">
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:26px;color:var(--g1)">${gross}</div>
+          <div style="font-size:10px;color:var(--txt3);text-transform:uppercase">Gross</div>
+        </div>
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px;text-align:center">
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:26px;color:var(--g2)">${net}</div>
+          <div style="font-size:10px;color:var(--txt3);text-transform:uppercase">Net</div>
+        </div>
+        <div style="background:rgba(45,122,79,0.08);border:1px solid rgba(45,122,79,0.2);border-radius:8px;padding:8px;text-align:center">
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:26px;color:var(--g1)">${sf}</div>
+          <div style="font-size:10px;color:var(--g2);text-transform:uppercase">SF Pts</div>
+        </div>
+      </div>
+      ${partnerLine}
+      ${statsHTML}
+    </div>`;
 
   document.getElementById('entry-hbh').style.display='none';
   document.getElementById('entry-sc').style.display='none';
   document.getElementById('entry-done').style.display='';
-  document.getElementById('entry-done-summary').innerHTML=summaryLines;
+  document.getElementById('entry-done-summary').innerHTML=summaryHTML;
 }
 function resetEntry(){
   document.getElementById('entry-setup-card').style.display='';
