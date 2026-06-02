@@ -287,7 +287,7 @@ tbody tr:hover td{background:var(--surface2)}
     <button class="nb" onclick="navTo('entry',this)">Enter Scores</button>
     <button class="nb" onclick="navTo('standings',this)">Standings</button>
     <button class="nb" onclick="navTo('schedule',this)">Results</button>
-    <button class="nb" onclick="navTo('admin',this)">Admin</button>
+    <button class="nb" id="nav-admin-btn" onclick="navTo('admin',this)" style="display:none">Admin</button>
   </div>
   <!-- Mobile: Enter Scores CTA + hamburger -->
   <button class="nav-enter-btn" onclick="navTo('entry',null);closeDrawer()">⛳ Enter Scores</button>
@@ -306,7 +306,7 @@ tbody tr:hover td{background:var(--surface2)}
   <button class="nb" onclick="navTo('dash',null);closeDrawer()">Dashboard</button>
   <button class="nb" onclick="navTo('standings',null);closeDrawer()">Standings</button>
   <button class="nb" onclick="navTo('schedule',null);closeDrawer()">Results</button>
-  <button class="nb" onclick="navTo('admin',null);closeDrawer()">Admin</button>
+  <button class="nb" id="drawer-admin-btn" onclick="navTo('admin',null);closeDrawer()" style="display:none">Admin</button>
 </div>
 
 <!-- ══ PLAYER PICKER MODAL ══ -->
@@ -516,6 +516,7 @@ tbody tr:hover td{background:var(--surface2)}
     <button class="tab" onclick="switchTab('ad','pool',this)">Pool/$$</button>
     <button class="tab" onclick="switchTab('ad','league',this)">League</button>
     <button class="tab" onclick="switchTab('ad','report-admin',this)">Captain's Report</button>
+    <button class="tab" onclick="switchTab('ad','locks',this)">Lock Weeks</button>
     <button class="tab" onclick="switchTab('ad','reset',this)">Reset</button>
   </div>
 
@@ -671,6 +672,14 @@ tbody tr:hover td{background:var(--surface2)}
     </div>
   </div>
 
+  <div id="ad-locks" style="display:none">
+    <div class="card">
+      <div class="card-title">Lock Weeks</div>
+      <div class="alert">Lock a week to prevent any further score changes. Locked weeks are read-only — players cannot post or edit scores. Unlock at any time.</div>
+      <div id="lock-weeks-list" style="display:grid;gap:8px;margin-bottom:12px"></div>
+    </div>
+  </div>
+
   <div id="ad-reset" style="display:none">
     <div class="card">
       <div class="card-title" style="color:var(--red)">Reset / Testing</div>
@@ -708,7 +717,7 @@ const SC={
 const ALL_H=[...SC.front,...SC.back];
 
 // ═══ STATE ═══
-let S={players:[],scores:[],leagueTeams:[],gbTargets:{},courses:[],
+let S={players:[],scores:[],leagueTeams:[],gbTargets:{},courses:[],lockedWeeks:[],
   cfg:{poolPlayers:10,entryFee:100,gbWeekly:20,skinsWeekly:20,lowGross:10,lowNet:10,
        i1:125,i2:75,i3:50,r1:75,r2:50,r3:25}};
 let currentPlayer=null; // {id,first,last,handicap}
@@ -770,9 +779,11 @@ function loadState(){
     S.leagueTeams  = data.leagueTeams  ? Object.values(data.leagueTeams)  : [];
     S.gbTargets    = data.gbTargets    || {};
     S.courses      = data.courses      ? Object.values(data.courses)      : [];
+    S.lockedWeeks  = data.lockedWeeks  ? Object.values(data.lockedWeeks).map(Number) : [];
     S.cfg          = data.cfg          || S.cfg;
     showLoading(false);
     if(!_initialized){_initialized=true}
+    updateAdminVisibility();
     refreshAll();
   },err=>{
     showLoading(false);
@@ -1026,6 +1037,10 @@ document.addEventListener('click',e=>{
   }
 });
 function navTo(id,btn){
+  // Block admin access for non-admins
+  if(id==='admin'&&!isAdmin(currentPlayer)){
+    alert('Admin access is restricted to the team captain.');return;
+  }
   closeDrawer();
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nb').forEach(b=>b.classList.remove('active'));
@@ -1059,10 +1074,24 @@ function selectPlayer(id){
   svCurrentPlayer();updateNavPlayer();closePlayerPicker();refreshAll();
 }
 function closePlayerPicker(){document.getElementById('player-modal').classList.remove('open')}
+function isAdmin(player){
+  return player&&player.first&&player.first.toLowerCase()==='jamie';
+}
+function updateAdminVisibility(){
+  const show=isAdmin(currentPlayer);
+  const nb=document.getElementById('nav-admin-btn');
+  const db2=document.getElementById('drawer-admin-btn');
+  if(nb)nb.style.display=show?'':'none';
+  if(db2)db2.style.display=show?'':'none';
+  if(!show&&document.getElementById('page-admin')?.classList.contains('active')){
+    navTo('dash',null);
+  }
+}
 function updateNavPlayer(){
   const n=document.getElementById('nav-player-name');const a=document.getElementById('nav-avatar');
   if(currentPlayer){n.textContent=currentPlayer.first;a.textContent=currentPlayer.first[0]+(currentPlayer.last[0]||'')}
   else{n.textContent='Select Player';a.textContent='?'}
+  updateAdminVisibility();
 }
 
 // ═══ DASHBOARD ═══
@@ -1130,7 +1159,7 @@ function renderDashTiles(){
 
 // ═══ ENTER SCORES ═══
 function initEntry(){
-  pSel('ew',WEEKS.map(w=>({v:w.num,l:`Week ${w.num} (${w.date}) vs ${w.opp}`})));
+  pSel('ew',WEEKS.map(w=>({v:w.num,l:`Week ${w.num} (${w.date}) vs ${w.opp}${S.lockedWeeks.includes(w.num)?' 🔒 LOCKED':''}`})));
   // Player dropdown — exclude no-selection option since we always need a player
   pSel('ep',S.players.map(p=>({v:p.id,l:`${pname(p.id)}`})));
   // Partner dropdown — includes "no partner" option
@@ -1227,6 +1256,12 @@ function startEntry(){
   }
 
   const week=parseInt(document.getElementById('ew').value);
+
+  // Block entry for locked weeks
+  if(S.lockedWeeks.includes(week)){
+    alert(`Week ${week} is locked. Scores cannot be edited. Contact the captain to unlock.`);
+    return;
+  }
   const existing=wkS(week);
   const ep2=[...new Set(existing.map(s=>s.playerId))];
   // Check slot availability — need 1 slot for player, possibly 1 more for partner
@@ -1244,12 +1279,14 @@ function startEntry(){
     playerId:pid,
     hcp:S.players.find(x=>x.id===pid)?.handicap||0,
     strokes9,
-    scores:{},          // hole# → gross score
+    scores:{},
+    touched:new Set(),         // holes player 1 has intentionally adjusted
     // Player 2 (partner)
     partnerId,
     partnerHcp:S.players.find(x=>x.id===partnerId)?.handicap||0,
     partnerStrokes9,
-    partnerScores:{},   // hole# → gross score
+    partnerScores:{},
+    partnerTouched:new Set(),  // holes partner has intentionally adjusted
   };
   ordered.forEach(h=>{hbhData.scores[h.h]=h.p; hbhData.partnerScores[h.h]=h.p;});
 
@@ -1308,20 +1345,21 @@ function renderHBH(){
     renderHBHPlayer('partner', h, nine, hbhData.partnerId, hbhData.partnerStrokes9, hbhData.partnerScores);
   }
 
-  // Post button — enabled when all holes entered for all players
-  const myAll=hbhData.holes.every(hh=>(hbhData.scores[hh.h]||0)>0);
-  const partAll=!hasPartner||hbhData.holes.every(hh=>(hbhData.partnerScores[hh.h]||0)>0);
+  // Post button — enabled only when every hole has been intentionally touched by each player
+  const myAll=hbhData.holes.every(hh=>hbhData.touched.has(hh.h));
+  const partAll=!hasPartner||hbhData.holes.every(hh=>hbhData.partnerTouched.has(hh.h));
   const canPost=myAll&&partAll;
   const postBtn=document.getElementById('hbh-post-btn');
   if(postBtn){
     postBtn.disabled=!canPost;
     postBtn.style.opacity=canPost?'1':'0.4';
+    postBtn.style.cursor=canPost?'pointer':'not-allowed';
     if(canPost){
       postBtn.textContent='Post Score ✓';
     }else{
-      const myCount=hbhData.holes.filter(hh=>(hbhData.scores[hh.h]||0)>0).length;
+      const myCount=hbhData.touched.size;
       if(hasPartner){
-        const pCount=hbhData.holes.filter(hh=>(hbhData.partnerScores[hh.h]||0)>0).length;
+        const pCount=hbhData.partnerTouched.size;
         postBtn.textContent=`Post (${myCount}/${totalHoles} · ${pCount}/${totalHoles})`;
       }else{
         postBtn.textContent=`Post (${myCount}/${totalHoles})`;
@@ -1381,8 +1419,10 @@ function renderHBHPlayer(who, h, nine, playerId, c9, scoreMap){
 function adjScore2(who, d){
   const h=hbhData.holes[hbhData.idx];
   const scoreMap=who==='partner'?hbhData.partnerScores:hbhData.scores;
+  const touchSet=who==='partner'?hbhData.partnerTouched:hbhData.touched;
   const cur=scoreMap[h.h]||h.p;
   scoreMap[h.h]=Math.max(1,Math.min(12,cur+d));
+  touchSet.add(h.h);  // mark this hole as intentionally set
   renderHBH();
 }
 function adjScore(d){adjScore2('me',d)} // alias
@@ -1504,7 +1544,9 @@ function scUpdate2(who, hole, val){
   const nine=hbhData.nine;
   const c9=who==='p1'?hbhData.strokes9:hbhData.partnerStrokes9;
   const scoreMap=who==='p1'?hbhData.scores:hbhData.partnerScores;
+  const touchSet=who==='p1'?hbhData.touched:hbhData.partnerTouched;
   scoreMap[hole]=parseInt(val)||0;
+  touchSet.add(hole); // mark as touched
   // Update gross and net totals for this player
   const hls=hbhData.holes;
   const frontH=hls.filter(h=>h.h<=9);const backH=hls.filter(h=>h.h>=10);
@@ -2012,7 +2054,43 @@ function renderAdmin(){
   pSel('swf',[{v:'',l:'All Weeks'},...WEEKS.map(w=>({v:w.num,l:`Week ${w.num} (${w.date})`}))]);
   pSel('spf',[{v:'',l:'All Players'},...S.players.map(p=>({v:p.id,l:`${p.first} ${p.last}`}))]);
   loadScoreAdmin();renderGBAdmin();renderPoolAdmin();renderLeagueAdmin();renderWeeklyScoreGrid();
-  initMassEntry();
+  initMassEntry();renderLockWeeks();
+}
+
+// ── WEEK LOCKING ──
+function renderLockWeeks(){
+  const el=document.getElementById('lock-weeks-list');if(!el)return;
+  const locked=S.lockedWeeks||[];
+  el.innerHTML=WEEKS.map(w=>{
+    const isLocked=locked.includes(w.num);
+    const wkScores=wkS(w.num).length;
+    return`<div style="background:var(--surface);border:1px solid ${isLocked?'var(--g2)':'var(--border)'};border-radius:8px;padding:10px 14px;display:flex;align-items:center;gap:10px">
+      <div style="flex:1">
+        <div style="font-weight:600;font-size:13px">Week ${w.num} — ${w.date} vs ${w.opp}</div>
+        <div style="font-size:11px;color:var(--txt3)">${wkScores} score${wkScores!==1?'s':''} recorded${isLocked?' · <strong style="color:var(--g2)">🔒 Locked</strong>':''}</div>
+      </div>
+      ${isLocked
+        ?`<button class="btn-out btn btn-sm" onclick="toggleWeekLock(${w.num},false)">Unlock</button>`
+        :`<button class="btn btn-sm" onclick="toggleWeekLock(${w.num},true)" ${wkScores===0?'style="opacity:0.5"':''}>Lock Week</button>`
+      }
+    </div>`;
+  }).join('');
+}
+
+async function toggleWeekLock(weekNum, lock){
+  if(lock){
+    const wkScores=wkS(weekNum).length;
+    if(wkScores===0&&!confirm(`Week ${weekNum} has no scores. Lock it anyway?`))return;
+    if(!S.lockedWeeks.includes(weekNum))S.lockedWeeks.push(weekNum);
+  }else{
+    if(!confirm(`Unlock Week ${weekNum}? Players will be able to enter or edit scores.`))return;
+    S.lockedWeeks=S.lockedWeeks.filter(w=>w!==weekNum);
+  }
+  await sv('lockedWeeks');
+  renderLockWeeks();
+  // Refresh entry week dropdown if visible
+  const ewEl=document.getElementById('ew');
+  if(ewEl)pSel('ew',WEEKS.map(w=>({v:w.num,l:`Week ${w.num} (${w.date}) vs ${w.opp}${S.lockedWeeks.includes(w.num)?' 🔒 LOCKED':''}`})));
 }
 function renderAdminTab(name){
   if(name==='players')renderRoster();
@@ -2021,6 +2099,7 @@ function renderAdminTab(name){
   if(name==='gamesetup')renderGBAdmin();
   if(name==='pool')renderPoolAdmin();
   if(name==='league'){renderLeagueAdmin();renderWeeklyScoreGrid();}
+  if(name==='locks')renderLockWeeks();
   if(name==='report-admin'){
     pSel('rw',WEEKS.map(w=>({v:w.num,l:`Week ${w.num} (${w.date}) vs ${w.opp}`})));
     document.getElementById('report-out').innerHTML='';
@@ -2208,7 +2287,7 @@ async function resetLeague(){
 }
 async function resetAll(){
   if(!confirm('Reset EVERYTHING? All scores, players, and settings will be deleted.'))return;
-  S={players:[],scores:[],leagueTeams:[],gbTargets:{},courses:[],cfg:{poolPlayers:10,entryFee:100,gbWeekly:20,skinsWeekly:20,lowGross:10,lowNet:10,i1:125,i2:75,i3:50,r1:75,r2:50,r3:25}};
+  S={players:[],scores:[],leagueTeams:[],gbTargets:{},courses:[],lockedWeeks:[],cfg:{poolPlayers:10,entryFee:100,gbWeekly:20,skinsWeekly:20,lowGross:10,lowNet:10,i1:125,i2:75,i3:50,r1:75,r2:50,r3:25}};
   currentPlayer=null;
   try{await db.ref('app').set(null)}catch(e){console.error('Reset error',e)}
   try{localStorage.removeItem('sn_currentPlayer')}catch(e){}
@@ -2340,6 +2419,7 @@ function updateMassSF(){
 async function saveMassEntry(){
   const week=parseInt(document.getElementById('me-week')?.value)||1;
   const nine=document.getElementById('me-nine')?.value||'front';
+  if(S.lockedWeeks.includes(week)){alert(`Week ${week} is locked and cannot be edited.`);return;}
   const hls=getHoles(nine);
   let saved=0;
   for(const p of S.players){
