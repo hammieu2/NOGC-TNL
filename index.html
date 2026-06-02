@@ -1381,6 +1381,8 @@ function startEntry(){
     // Stats (player 1 only, optional)
     trackStats,
     stats:{},  // hole# → {fw, gir, putts}
+    // Furthest hole index reached (enables post button)
+    maxIdx:0,
   };
   ordered.forEach(h=>{
     hbhData.scores[h.h]=h.p;
@@ -1412,6 +1414,9 @@ function renderHBH(){
   const hasPartner=!!hbhData.partnerId;
   const totalHoles=hbhData.holes.length;
   const posInRound=hbhData.idx+1;
+
+  // Track furthest hole reached so Post unlocks after last hole is visited
+  if(hbhData.idx>hbhData.maxIdx)hbhData.maxIdx=hbhData.idx;
 
   // Week label
   const wi=WEEKS.find(w=>w.num===hbhData.week);
@@ -1445,10 +1450,9 @@ function renderHBH(){
   // Stats panel (player 1 only)
   renderStatsPanel(h);
 
-  // Post button — enabled only when every hole has been intentionally touched by each player
-  const myAll=hbhData.holes.every(hh=>hbhData.touched.has(hh.h));
-  const partAll=!hasPartner||hbhData.holes.every(hh=>hbhData.partnerTouched.has(hh.h));
-  const canPost=myAll&&partAll;
+  // Post button — enabled once the player has navigated to the last hole in their round
+  // (last hole = hbhData.holes[totalHoles-1], regardless of starting hole)
+  const canPost=hbhData.maxIdx>=totalHoles-1;
   const postBtn=document.getElementById('hbh-post-btn');
   if(postBtn){
     postBtn.disabled=!canPost;
@@ -1457,13 +1461,8 @@ function renderHBH(){
     if(canPost){
       postBtn.textContent='Post Score ✓';
     }else{
-      const myCount=hbhData.touched.size;
-      if(hasPartner){
-        const pCount=hbhData.partnerTouched.size;
-        postBtn.textContent=`Post (${myCount}/${totalHoles} · ${pCount}/${totalHoles})`;
-      }else{
-        postBtn.textContent=`Post (${myCount}/${totalHoles})`;
-      }
+      const remaining=totalHoles-1-hbhData.maxIdx;
+      postBtn.textContent=`Post — ${remaining} hole${remaining!==1?'s':''} to go`;
     }
   }
 }
@@ -1527,9 +1526,15 @@ function adjScore2(who, d){
 }
 function adjScore(d){adjScore2('me',d)} // alias
 function hbhSetActive(){}  // no-op — kept so any stale references don't crash
-function hbhNext(){if(hbhData.idx<hbhData.holes.length-1){hbhData.idx++;renderHBH();}}
+function hbhNext(){
+  if(hbhData.idx<hbhData.holes.length-1){hbhData.idx++;renderHBH();}
+}
 function hbhPrev(){if(hbhData.idx>0){hbhData.idx--;renderHBH()}}
-function hbhGoTo(i){hbhData.idx=i;renderHBH()}
+function hbhGoTo(i){
+  hbhData.idx=i;
+  // maxIdx is updated inside renderHBH
+  renderHBH();
+}
 
 // ── STATS PANEL ──
 function renderStatsPanel(h){
@@ -1625,7 +1630,6 @@ function renderSC(){
 
   function playerBlock(pid, who, c9p, scoreMap){
     // who = 'p1' or 'p2' — used for unique element IDs
-    const hs=frontH.length?frontH:backH; // use whichever nine is active
     const allH=hls; // all ordered holes
 
     // For each hole: stroke indicator + input pre-filled with par-default score
@@ -1682,12 +1686,85 @@ function renderSC(){
         </tbody>`;
     }
 
-    return`<div style="margin-bottom:12px;overflow-x:auto">
+    const scoreTable=`<div style="margin-bottom:12px;overflow-x:auto">
       <table style="font-size:12px;width:100%;border-collapse:collapse;min-width:400px">
         ${halfBlock(front,'Out')}
         ${halfBlock(back,'In')}
       </table>
     </div>`;
+
+    // Stats section for player 1 only — per-hole accordion
+    let statsSection='';
+    if(who==='p1'&&hbhData.trackStats){
+      const STAT_OPTIONS=[
+        {val:'hit',label:'✓ Hit',cls:''},
+        {val:'left',label:'← Left',cls:''},
+        {val:'right',label:'→ Right',cls:''},
+        {val:'short',label:'↓ Short',cls:''},
+        {val:'long',label:'↑ Long',cls:''},
+        {val:'bunker',label:'⛱ Bunker',cls:'stat-btn-sand'},
+        {val:'penalty',label:'⚠ Penalty',cls:'stat-btn-pen'},
+      ];
+      const holeCards=allH.map(h=>{
+        const st=hbhData.stats[h.h]||{fw:[],gir:[],putts:2};
+        const fwArr=Array.isArray(st.fw)?st.fw:[];
+        const girArr=Array.isArray(st.gir)?st.gir:[];
+        const putts=st.putts??2;
+        const isP3=h.p===3;
+
+        // Summary badge for collapsed state
+        const fwSummary=isP3?'Par 3':(fwArr.length?fwArr.map(v=>v.charAt(0).toUpperCase()+v.slice(1)).join('+'):'–');
+        const girSummary=girArr.length?girArr.map(v=>v.charAt(0).toUpperCase()+v.slice(1)).join('+'):'–';
+        const fwHit=fwArr.includes('hit');const girHit=girArr.includes('hit');
+
+        function btnGroup(statKey, currArr, isP3hide){
+          if(isP3hide)return`<span style="font-size:11px;color:var(--txt4)">N/A (par 3)</span>`;
+          return STAT_OPTIONS.map(o=>`<button class="stat-btn ${o.cls} ${currArr.includes(o.val)?'active':''}"
+            onclick="scSetStat('${h.h}','${statKey}','${o.val}')"
+            style="padding:5px 8px;font-size:10px;margin:2px">${o.label}</button>`).join('');
+        }
+
+        return`<div style="border:1px solid var(--border);border-radius:8px;margin-bottom:6px;overflow:hidden">
+          <!-- Collapsed header — tap to expand -->
+          <div onclick="scToggleStats(${h.h})" style="display:flex;align-items:center;gap:8px;padding:8px 10px;cursor:pointer;background:var(--surface2)">
+            <div style="font-weight:700;color:var(--g1);min-width:50px;font-size:12px">Hole ${h.h}</div>
+            <div style="display:flex;gap:6px;flex:1;flex-wrap:wrap">
+              <span style="font-size:10px;background:${fwHit?'rgba(45,122,79,0.15)':'var(--surface)'};border:1px solid var(--border);border-radius:4px;padding:1px 6px;color:${fwHit?'var(--g2)':'var(--txt3)'}">FW: ${fwSummary}</span>
+              <span style="font-size:10px;background:${girHit?'rgba(45,122,79,0.15)':'var(--surface)'};border:1px solid var(--border);border-radius:4px;padding:1px 6px;color:${girHit?'var(--g2)':'var(--txt3)'}">GIR: ${girSummary}</span>
+              <span style="font-size:10px;background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:1px 6px;color:var(--txt3)">Putts: ${putts}</span>
+            </div>
+            <div id="sc-stats-arrow-${h.h}" style="color:var(--txt4);font-size:12px;transition:transform .2s">▼</div>
+          </div>
+          <!-- Expanded body -->
+          <div id="sc-stats-body-${h.h}" style="display:none;padding:10px">
+            ${!isP3?`<div style="margin-bottom:8px">
+              <div style="font-size:10px;font-weight:600;color:var(--txt3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Fairway</div>
+              <div style="display:flex;flex-wrap:wrap;gap:3px">${btnGroup('fw',fwArr,false)}</div>
+            </div>`:''}
+            <div style="margin-bottom:8px">
+              <div style="font-size:10px;font-weight:600;color:var(--txt3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Green in Regulation</div>
+              <div style="display:flex;flex-wrap:wrap;gap:3px">${btnGroup('gir',girArr,false)}</div>
+            </div>
+            <div>
+              <div style="font-size:10px;font-weight:600;color:var(--txt3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Putts</div>
+              <div style="display:flex;align-items:center;gap:8px">
+                <button class="hbh-pm" style="width:32px;height:32px;font-size:18px" onclick="scAdjPutts(${h.h},-1)">−</button>
+                <div id="sc-putts-${h.h}" style="font-family:'Bebas Neue',sans-serif;font-size:28px;color:var(--g1);min-width:28px;text-align:center;line-height:1">${putts}</div>
+                <button class="hbh-pm" style="width:32px;height:32px;font-size:18px" onclick="scAdjPutts(${h.h},1)">+</button>
+                <span style="font-size:11px;color:var(--txt3)">putts</span>
+              </div>
+            </div>
+          </div>
+        </div>`;
+      }).join('');
+
+      statsSection=`<div style="margin-top:12px">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:14px;color:var(--g1);letter-spacing:1px;margin-bottom:8px">Stats — ${pname(pid)}</div>
+        ${holeCards}
+      </div>`;
+    }
+
+    return scoreTable+statsSection;
   }
 
   // Divider label style
@@ -1762,6 +1839,73 @@ function scUpdate2(who, hole, val){
 }
 // Keep old scUpdate as alias
 function scUpdate(hole,val){scUpdate2('p1',hole,val)}
+
+// ── SCORECARD STATS HELPERS ──
+function scToggleStats(holeNum){
+  const body=document.getElementById(`sc-stats-body-${holeNum}`);
+  const arrow=document.getElementById(`sc-stats-arrow-${holeNum}`);
+  if(!body)return;
+  const open=body.style.display==='none'||body.style.display==='';
+  body.style.display=open?'block':'none';
+  if(arrow)arrow.style.transform=open?'rotate(180deg)':'rotate(0deg)';
+}
+
+function scSetStat(holeNum,statKey,val){
+  holeNum=parseInt(holeNum);
+  if(!hbhData.stats[holeNum])hbhData.stats[holeNum]={fw:[],gir:[],putts:2};
+  const st=hbhData.stats[holeNum];
+  const arr=Array.isArray(st[statKey])?[...st[statKey]]:[];
+  const idx=arr.indexOf(val);
+  if(idx>=0){
+    arr.splice(idx,1); // deselect
+  }else{
+    if(val==='hit'){arr.length=0;arr.push('hit');}
+    else{const hi=arr.indexOf('hit');if(hi>=0)arr.splice(hi,1);arr.push(val);}
+  }
+  st[statKey]=arr;
+  // Update button styles in the scorecard stats panel
+  const body=document.getElementById(`sc-stats-body-${holeNum}`);
+  if(body){
+    body.querySelectorAll(`[onclick*="'${statKey}'"]`).forEach(b=>{
+      const bval=b.getAttribute('onclick').match(/'([^']+)'\s*\)$/)?.[1];
+      if(bval)b.classList.toggle('active',arr.includes(bval));
+    });
+  }
+  // Update the collapsed summary badges
+  scUpdateStatBadge(holeNum);
+}
+
+function scAdjPutts(holeNum,d){
+  holeNum=parseInt(holeNum);
+  if(!hbhData.stats[holeNum])hbhData.stats[holeNum]={fw:[],gir:[],putts:2};
+  hbhData.stats[holeNum].putts=Math.max(0,Math.min(8,(hbhData.stats[holeNum].putts??2)+d));
+  const el=document.getElementById(`sc-putts-${holeNum}`);
+  if(el)el.textContent=hbhData.stats[holeNum].putts;
+  scUpdateStatBadge(holeNum);
+}
+
+function scUpdateStatBadge(holeNum){
+  // Refresh the collapsed-header summary badges for this hole
+  const body=document.getElementById(`sc-stats-body-${holeNum}`);
+  const header=body?.previousElementSibling;
+  if(!header)return;
+  const st=hbhData.stats[holeNum]||{fw:[],gir:[],putts:2};
+  const fwArr=Array.isArray(st.fw)?st.fw:[];
+  const girArr=Array.isArray(st.gir)?st.gir:[];
+  const putts=st.putts??2;
+  const fwHit=fwArr.includes('hit');const girHit=girArr.includes('hit');
+  const hd=hbhData.holes.find(x=>x.h===holeNum);
+  const isP3=hd?.p===3;
+  // Find the badge spans (2nd child div in header, contains the three spans)
+  const badgeWrap=header.querySelector('div[style*="flex:1"]');
+  if(!badgeWrap)return;
+  const spans=badgeWrap.querySelectorAll('span');
+  const fwSummary=isP3?'Par 3':(fwArr.length?fwArr.map(v=>v.charAt(0).toUpperCase()+v.slice(1)).join('+'):'–');
+  const girSummary=girArr.length?girArr.map(v=>v.charAt(0).toUpperCase()+v.slice(1)).join('+'):'–';
+  if(spans[0])spans[0].textContent=`FW: ${fwSummary}`;
+  if(spans[1])spans[1].textContent=`GIR: ${girSummary}`;
+  if(spans[2])spans[2].textContent=`Putts: ${putts}`;
+}
 
 // ── POST SCORES ──
 async function postScores(){
