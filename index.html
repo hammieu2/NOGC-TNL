@@ -1251,7 +1251,7 @@ function startEntry(){
     partnerStrokes9,
     partnerScores:{},   // hole# → gross score
   };
-  ordered.forEach(h=>{hbhData.scores[h.h]=null;hbhData.partnerScores[h.h]=null;});
+  ordered.forEach(h=>{hbhData.scores[h.h]=h.p; hbhData.partnerScores[h.h]=h.p;});
 
   document.getElementById('entry-setup-card').style.display='none';
   document.getElementById('entry-done').style.display='none';
@@ -1290,7 +1290,7 @@ function renderHBH(){
   const wrap=document.getElementById('hbh-players-wrap');
   if(wrap)wrap.style.gridTemplateColumns=hasPartner?'1fr 1fr':'1fr';
 
-  // Dots — hole filled when BOTH players (or just player if solo) have entered
+  // Dots — filled once hole has a score (par default counts as entered)
   document.getElementById('hbh-dots').innerHTML=hbhData.holes.map((hh,i)=>{
     const myDone=(hbhData.scores[hh.h]||0)>0;
     const partDone=!hasPartner||(hbhData.partnerScores[hh.h]||0)>0;
@@ -1331,7 +1331,7 @@ function renderHBH(){
 }
 
 function renderHBHPlayer(who, h, nine, playerId, c9, scoreMap){
-  const score=scoreMap[h.h]||null;
+  const score=scoreMap[h.h]||h.p;  // always a number; par is default
   const strokesOnHole=netStrN(c9,h.hcp,nine);
 
   // Name
@@ -1350,40 +1350,31 @@ function renderHBHPlayer(who, h, nine, playerId, c9, scoreMap){
     }
   }
 
-  // Score
+  // Score — always show the number, colour by net-to-par
   const sd=document.getElementById(`hbh-score-${who}`);
   if(sd){
-    if(!score){sd.textContent='–';sd.className='hbh-score-sm over';}
-    else{
-      const net=netScN(score,c9,h.hcp,nine);
-      const nd=net-h.p;
-      sd.textContent=score;
-      sd.className='hbh-score-sm'+(nd<=-1?' under':nd===0?' at-par':' over');
-    }
+    const net=netScN(score,c9,h.hcp,nine);
+    const nd=net-h.p;
+    sd.textContent=score;
+    sd.className='hbh-score-sm'+(nd<=-1?' under':nd===0?' at-par':' over');
   }
 
-  // To par
+  // To par (gross)
   const tp=document.getElementById(`hbh-topar-${who}`);
   if(tp){
-    if(!score){tp.textContent='tap to enter';tp.className='hbh-topar-sm';}
-    else{
-      const d=score-h.p;
-      tp.textContent=d===0?'E':d>0?'+'+d:''+d;
-      tp.className='hbh-topar-sm'+(d<0?' u':d===0?' e':' o');
-    }
+    const d=score-h.p;
+    tp.textContent=d===0?'E':d>0?'+'+d:''+d;
+    tp.className='hbh-topar-sm'+(d<0?' u':d===0?' e':' o');
   }
 
   // SF label
   const sfEl=document.getElementById(`hbh-sf-${who}`);
   if(sfEl){
-    if(!score){sfEl.textContent='';sfEl.style.color='';}
-    else{
-      const net=netScN(score,c9,h.hcp,nine);
-      const sf=sfPts(net,h.p);
-      const idx=Math.min(4,Math.max(0,sf));
-      sfEl.textContent=SF_LABELS[idx]+' — '+SF_PTS_LABELS[idx];
-      sfEl.style.color=SF_COLORS[idx];
-    }
+    const net=netScN(score,c9,h.hcp,nine);
+    const sf=sfPts(net,h.p);
+    const idx=Math.min(4,Math.max(0,sf));
+    sfEl.textContent=SF_LABELS[idx]+' — '+SF_PTS_LABELS[idx];
+    sfEl.style.color=SF_COLORS[idx];
   }
 }
 
@@ -1394,8 +1385,7 @@ function adjScore2(who, d){
   scoreMap[h.h]=Math.max(1,Math.min(12,cur+d));
   renderHBH();
 }
-// Keep adjScore alias so nothing else breaks
-function adjScore(d){adjScore2('me',d)}
+function adjScore(d){adjScore2('me',d)} // alias
 function hbhSetActive(){}  // no-op — kept so any stale references don't crash
 function hbhNext(){if(hbhData.idx<hbhData.holes.length-1){hbhData.idx++;renderHBH();}}
 function hbhPrev(){if(hbhData.idx>0){hbhData.idx--;renderHBH()}}
@@ -1407,83 +1397,151 @@ function renderSC(){
   const c9=hbhData.strokes9;
   const pc9=hbhData.partnerStrokes9;
   const hasPartner=!!hbhData.partnerId;
+
   document.getElementById('sc-info').innerHTML=
-    `Week ${hbhData.week} (${wi?.date}) vs ${wi?.opp} · ${nine==='front'?'Front 9':'Back 9'} · Start hole ${hbhData.startHole}<br>`+
-    `<strong>${pname(hbhData.playerId)}</strong> ${c9} str`+
-    (hasPartner?` &nbsp;·&nbsp; <strong>${pname(hbhData.partnerId)}</strong> ${pc9} str`:'');
+    `<strong>Week ${hbhData.week}</strong> (${wi?.date}) vs ${wi?.opp} · ${nine==='front'?'Front 9':'Back 9'} · Start: Hole ${hbhData.startHole}`;
 
   const hls=hbhData.holes;
-  const frontH=hls.filter(h=>h.h<=9);const backH=hls.filter(h=>h.h>=10);
+  // Always split front/back even if only playing one nine
+  const frontH=hls.filter(h=>h.h<=9);
+  const backH=hls.filter(h=>h.h>=10);
 
-  function makeBlock(hs,label){
-    if(!hs.length)return'';
-    const parTot=hs.reduce((s,h)=>s+h.p,0);
+  function playerBlock(pid, who, c9p, scoreMap){
+    // who = 'p1' or 'p2' — used for unique element IDs
+    const hs=frontH.length?frontH:backH; // use whichever nine is active
+    const allH=hls; // all ordered holes
 
-    // Header: hole numbers
-    const hdrCells=hs.map(h=>`<th style="text-align:center">${h.h}</th>`).join('');
-    const parCells=hs.map(h=>`<td style="text-align:center;color:var(--txt3);font-size:11px">${h.p}</td>`).join('');
+    // For each hole: stroke indicator + input pre-filled with par-default score
+    const holeCols=allH.map(h=>{
+      const str=netStrN(c9p,h.hcp,nine);
+      const val=scoreMap[h.h]||h.p; // default to par
+      return{h,str,val};
+    });
 
-    function playerRows(playerId, c9p, scoreMap, strokesLabel){
-      const hcpCells=hs.map(h=>{
-        const str=netStrN(c9p,h.hcp,nine);
-        return`<td style="text-align:center;font-size:10px;color:${str>0?'var(--g2)':'var(--txt4)'}">${h.hcp}${str>0?'<sup style="font-weight:700">'+('*'.repeat(str))+'</sup>':''}`;
+    // Split into front/back for Out/In totals
+    const front=holeCols.filter(x=>x.h.h<=9);
+    const back=holeCols.filter(x=>x.h.h>=10);
+
+    function halfBlock(cols, lbl){
+      if(!cols.length)return'';
+      const hdrRow=cols.map(x=>`<th style="text-align:center;min-width:32px">${x.h.h}</th>`).join('');
+      const parRow=cols.map(x=>`<td style="text-align:center;color:rgba(255,255,255,0.6);font-size:10px">${x.h.p}</td>`).join('');
+      const hcpRow=cols.map(x=>`<td style="text-align:center;font-size:10px;color:${x.str>0?'var(--g2)':'rgba(255,255,255,0.35)'}">${x.h.hcp}${x.str>0?'<sup style="font-weight:700;color:var(--g2)">'+('*'.repeat(x.str))+'</sup>':''}</td>`).join('');
+      const inpRow=cols.map(x=>`<td style="padding:2px;text-align:center">
+        <input class="sc-score-inp" type="number" id="sci-${who}-${x.h.h}"
+          value="${x.val}" min="1" max="12" inputmode="numeric"
+          onchange="scUpdate2('${who}',${x.h.h},this.value)"
+          style="text-align:center;width:36px;height:28px;font-size:13px;font-weight:600">
+        ${x.str>0?`<div style="font-size:9px;color:var(--g2);font-weight:700;text-align:center">${'*'.repeat(x.str)}</div>`:''}
+      </td>`).join('');
+      const parTot=cols.reduce((s,x)=>s+x.h.p,0);
+      const grossTot=cols.reduce((s,x)=>s+(scoreMap[x.h.h]||x.h.p),0);
+      const netTot=cols.reduce((s,x)=>s+netScN(scoreMap[x.h.h]||x.h.p,c9p,x.h.hcp,nine),0);
+      const netRow=cols.map(x=>{
+        const g=scoreMap[x.h.h]||x.h.p;
+        const net=netScN(g,c9p,x.h.hcp,nine);
+        const diff=net-x.h.p;
+        return`<td style="text-align:center;font-size:11px;color:${diff<0?'var(--g2)':diff===0?'rgba(255,255,255,0.8)':'rgba(255,255,255,0.4)'};font-weight:${diff<=0?600:400}">${net}</td>`;
       }).join('');
-      const inpCells=hs.map(h=>{
-        const str=netStrN(c9p,h.hcp,nine);
-        const val=scoreMap[h.h]||'';
-        const pid=playerId===hbhData.playerId?'p1':'p2';
-        return`<td style="padding:2px;text-align:center">
-          <input class="sc-score-inp" type="number" id="sci-${pid}-${h.h}" value="${val}" min="1" max="12" inputmode="numeric" onchange="scUpdate2('${pid}',${h.h},this.value)" style="text-align:center">
-          ${str>0?`<div style="font-size:9px;color:var(--g2);font-weight:700;text-align:center">${'*'.repeat(str)}</div>`:''}
-        </td>`;
-      }).join('');
-      const totGross=hs.reduce((s,h)=>s+(scoreMap[h.h]||0),0);
-      const totNet=hs.reduce((s,h)=>s+(scoreMap[h.h]?netScN(scoreMap[h.h],c9p,h.hcp,nine):0),0);
-      const netCells=hs.map(h=>{
-        const g=scoreMap[h.h];if(!g)return`<td style="text-align:center;color:var(--txt4);font-size:11px">–</td>`;
-        const net=netScN(g,c9p,h.hcp,nine);const diff=net-h.p;
-        return`<td style="text-align:center;color:${diff<0?'var(--g2)':diff===0?'var(--txt2)':'var(--txt4)'};font-weight:${diff<=0?600:400};font-size:11px">${net}</td>`;
-      }).join('');
-      const pid2=playerId===hbhData.playerId?'p1':'p2';
-      return`<tr style="background:rgba(45,122,79,0.04)">
-          <td style="font-size:10px;color:var(--txt3);white-space:nowrap">Hcp *=str</td>${hcpCells}<td></td></tr>
-        <tr><td style="font-weight:600;font-size:12px;color:var(--g1)">${pname(playerId)}</td>${inpCells}<td class="sc-out-in" id="sc-gross-${pid2}-${label}">${totGross||'–'}</td></tr>
-        <tr><td style="font-size:11px;color:var(--g2)">Net</td>${netCells}<td class="sc-out-in" id="sc-net-${pid2}-${label}" style="color:var(--g2);font-size:11px">${totNet||'–'}</td></tr>`;
+      return`
+        <thead><tr>
+          <th style="text-align:left;font-size:11px;color:rgba(255,255,255,0.7);font-weight:400">${lbl}</th>
+          ${hdrRow}
+          <th style="text-align:center">${lbl}</th>
+        </tr></thead>
+        <tbody>
+          <tr><td style="color:rgba(255,255,255,0.5);font-size:10px">Par</td>${parRow}<td style="text-align:center;color:rgba(255,255,255,0.5);font-size:10px">${parTot}</td></tr>
+          <tr><td style="color:var(--g2);font-size:10px">Hcp *</td>${hcpRow}<td></td></tr>
+          <tr>
+            <td style="font-weight:700;font-size:12px;white-space:nowrap;color:var(--g1)">${pname(pid)}</td>
+            ${inpRow}
+            <td class="sc-out-in" id="sc-gross-${who}-${lbl}" style="font-weight:700">${grossTot}</td>
+          </tr>
+          <tr>
+            <td style="font-size:10px;color:var(--g2)">Net</td>
+            ${netRow}
+            <td class="sc-out-in" id="sc-net-${who}-${lbl}" style="font-size:11px;color:var(--g2)">${netTot}</td>
+          </tr>
+        </tbody>`;
     }
 
-    return`<tr><td class="sc-out-in">${label}</td>${hdrCells}<td class="sc-out-in">${label}</td></tr>
-      <tr><td style="color:var(--txt3);font-size:10px">Yds</td>${hs.map(h=>`<td style="text-align:center;font-size:10px;color:var(--txt3)">${h.y}</td>`).join('')}<td></td></tr>
-      <tr><td style="color:var(--txt3);font-size:10px">Par</td>${parCells}<td class="sc-out-in">${parTot}</td></tr>
-      ${playerRows(hbhData.playerId,c9,hbhData.scores,'Gross')}
-      ${hasPartner?playerRows(hbhData.partnerId,pc9,hbhData.partnerScores,'Gross'):''}`;
+    return`<div style="margin-bottom:12px;overflow-x:auto">
+      <table style="font-size:12px;width:100%;border-collapse:collapse;min-width:400px">
+        ${halfBlock(front,'Out')}
+        ${halfBlock(back,'In')}
+      </table>
+    </div>`;
   }
 
-  document.getElementById('sc-table').innerHTML=`<tbody>${makeBlock(frontH,'Out')}${makeBlock(backH,'In')}</tbody>`;
+  // Divider label style
+  function playerLabel(pid, strokes){
+    return`<div style="font-family:'Bebas Neue',sans-serif;font-size:14px;color:var(--g1);letter-spacing:1px;margin-bottom:4px;padding-left:2px">
+      ${pname(pid)} <span style="font-family:'Inter',sans-serif;font-size:11px;font-weight:500;color:var(--txt3);letter-spacing:0">${strokes} strokes</span>
+    </div>`;
+  }
+
+  document.getElementById('sc-table').innerHTML=''; // clear table — we use divs now
+  document.getElementById('sc-table').style.display='none';
+
+  // Insert player blocks into a container div after the table
+  let container=document.getElementById('sc-players-container');
+  if(!container){
+    container=document.createElement('div');
+    container.id='sc-players-container';
+    document.getElementById('sc-table').parentNode.insertBefore(container, document.getElementById('sc-table'));
+  }
+  container.innerHTML=
+    playerLabel(hbhData.playerId, c9)+
+    playerBlock(hbhData.playerId,'p1',c9,hbhData.scores)+
+    (hasPartner
+      ?`<div class="divider"></div>`+
+        playerLabel(hbhData.partnerId, pc9)+
+        playerBlock(hbhData.partnerId,'p2',pc9,hbhData.partnerScores)
+      :'');
 }
 
-function scUpdate2(pid,hole,val){
+function scUpdate2(who, hole, val){
   const nine=hbhData.nine;
-  const c9=pid==='p1'?hbhData.strokes9:hbhData.partnerStrokes9;
-  const scoreMap=pid==='p1'?hbhData.scores:hbhData.partnerScores;
+  const c9=who==='p1'?hbhData.strokes9:hbhData.partnerStrokes9;
+  const scoreMap=who==='p1'?hbhData.scores:hbhData.partnerScores;
   scoreMap[hole]=parseInt(val)||0;
-  // Update totals for both players
-  ['p1','p2'].forEach(p=>{
-    if(p==='p2'&&!hbhData.partnerId)return;
-    const sm=p==='p1'?hbhData.scores:hbhData.partnerScores;
-    const cp=p==='p1'?hbhData.strokes9:hbhData.partnerStrokes9;
-    const hls=hbhData.holes;
-    const frontH=hls.filter(h=>h.h<=9);const backH=hls.filter(h=>h.h>=10);
-    ['Out','In'].forEach((lbl,idx)=>{
-      const hs=idx===0?frontH:backH;
-      const tot=hs.reduce((s,h)=>s+(sm[h.h]||0),0);
-      const totNet=hs.reduce((s,h)=>s+(sm[h.h]?netScN(sm[h.h],cp,h.hcp,nine):0),0);
-      const gel=document.getElementById(`sc-gross-${p}-${lbl}`);if(gel)gel.textContent=tot||'–';
-      const nel=document.getElementById(`sc-net-${p}-${lbl}`);if(nel)nel.textContent=totNet||'–';
-    });
+  // Update gross and net totals for this player
+  const hls=hbhData.holes;
+  const frontH=hls.filter(h=>h.h<=9);const backH=hls.filter(h=>h.h>=10);
+  ['Out','In'].forEach((lbl,idx)=>{
+    const hs=idx===0?frontH:backH;
+    if(!hs.length)return;
+    const gross=hs.reduce((s,h)=>s+(scoreMap[h.h]||h.p),0);
+    const net=hs.reduce((s,h)=>s+netScN(scoreMap[h.h]||h.p,c9,h.hcp,nine),0);
+    const gel=document.getElementById(`sc-gross-${who}-${lbl}`);if(gel)gel.textContent=gross;
+    const nel=document.getElementById(`sc-net-${who}-${lbl}`);if(nel)nel.textContent=net;
+    // Also update the net cell for the changed hole
+    const hd=hs.find(h=>h.h===hole);
+    if(hd){
+      // Find net cell and update inline
+      const inp=document.getElementById(`sci-${who}-${hole}`);
+      if(inp){
+        const g=scoreMap[hole]||hd.p;
+        const netV=netScN(g,c9,hd.hcp,nine);
+        const diff=netV-hd.p;
+        // The net cell is in the row after the gross row — update via DOM
+        const td=inp.closest('td');
+        const row=td?.closest('tr');
+        const nextRow=row?.nextElementSibling;
+        if(nextRow){
+          const idx2=Array.from(row.cells).indexOf(td);
+          const netCell=nextRow.cells[idx2];
+          if(netCell&&netCell!==row.cells[row.cells.length-1]){
+            netCell.textContent=netV;
+            netCell.style.color=diff<0?'var(--g2)':diff===0?'rgba(255,255,255,0.8)':'rgba(255,255,255,0.4)';
+            netCell.style.fontWeight=diff<=0?'600':'400';
+          }
+        }
+      }
+    }
   });
 }
-
-// Keep old scUpdate as alias for backwards compatibility
+// Keep old scUpdate as alias
 function scUpdate(hole,val){scUpdate2('p1',hole,val)}
 
 // ── POST SCORES ──
@@ -1535,6 +1593,11 @@ function resetEntry(){
   document.getElementById('entry-hbh').style.display='none';
   document.getElementById('entry-sc').style.display='none';
   document.getElementById('entry-done').style.display='none';
+  // Clean up scorecard container
+  const c=document.getElementById('sc-players-container');
+  if(c)c.innerHTML='';
+  const t=document.getElementById('sc-table');
+  if(t)t.style.display='';
   initEntry();
 }
 
