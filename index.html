@@ -2514,33 +2514,72 @@ function buildReportHTML(week, forPrint){
   const stats=calcAllStats();
   const allPlayers=S.players;
 
-  // ── 1. TEAM STANDINGS ──
+  // ── 1. FULL TEAM STANDINGS (both pods) ──
+  const teamStandingsSection=(()=>{
+    const pods=[1,2].map(pod=>{
+      const teams=S.leagueTeams.filter(t=>parseInt(t.pod)===pod)
+        .map(t=>({...t,total:(t.weeklyScores||[]).reduce((s,x)=>s+(x||0),0)}))
+        .sort((a,b)=>b.total-a.total);
+      return{pod,teams};
+    });
+    if(!pods.some(p=>p.teams.length))return'';
+    const podTables=pods.map(({pod,teams})=>{
+      if(!teams.length)return'';
+      return '<div style="flex:1;min-width:200px">'
+        +'<div style="font-weight:700;font-size:12px;color:#2d7a4f;margin-bottom:4px">Pod '+(pod===1?'A':'B')+'</div>'
+        +'<table class="r-table"><thead><tr><th>#</th><th>Team</th>'
+        +WEEKS.slice(0,week).map(w=>'<th>Wk'+w.num+'</th>').join('')
+        +'<th>Total</th></tr></thead>'
+        +'<tbody>'+teams.map((t,i)=>{
+          const wkCells=WEEKS.slice(0,week).map((_,wi)=>'<td>'+((t.weeklyScores||[])[wi]||'–')+'</td>').join('');
+          return '<tr class="'+(i<4?'r-counted':'')+(t.ours?' r-ours':'')+'">'
+            +'<td>'+(i+1)+'</td>'
+            +'<td>'+(t.ours?'<strong>'+t.name+'</strong>':t.name)+'</td>'
+            +wkCells
+            +'<td><strong>'+t.total+'</strong></td>'
+            +'</tr>';
+        }).join('')+'</tbody></table>'
+        +'</div>';
+    }).join('');
+    return '<div class="r-section">'
+      +'<div class="r-section-title">1. Team Standings — Season</div>'
+      +'<div style="display:flex;gap:16px;flex-wrap:wrap">'+podTables+'</div>'
+      +'<div class="r-note">Top 4 per pod (highlighted) advance to playoffs</div>'
+      +'</div>';
+  })();
+
+  // ── 2. THIS WEEK'S SCORING ──
   const pts=ws.map(s=>({playerId:s.playerId,sf:rndSF(s)}));
   const withC=top4(pts).sort((a,b)=>b.sf-a.sf);
   const top4Total=[...pts].sort((a,b)=>b.sf-a.sf).slice(0,4).reduce((s,p)=>s+p.sf,0);
   const teamSection=`
     <div class="r-section">
-      <div class="r-section-title">1. Team Score</div>
-      <div class="r-big-num">${top4Total} <span class="r-big-sub">pts (top 4)</span></div>
+      <div class="r-section-title">2. This Week's Scoring — Week ${week}</div>
+      <div class="r-big-num">${top4Total} <span class="r-big-sub">pts (top 4 counted)</span></div>
       <table class="r-table">
-        <thead><tr><th>#</th><th>Player</th><th>SF Pts</th><th>Counted</th></tr></thead>
+        <thead><tr><th>#</th><th>Player</th><th>Gross</th><th>Net</th><th>SF Pts</th><th>Counted</th></tr></thead>
         <tbody>${withC.map((p,i)=>{
+          const sc=ws.find(s=>s.playerId===p.playerId);
+          const gross=sc?rndGross(sc):'–';
+          const net=sc?rndNet(sc):'–';
           const tie=p.contributed>0&&p.contributed<1?' ('+Math.round(p.contributed*100)+'% tie)':'';
           const badge=p.contributed>0?'<span class="r-badge-yes">✓ Counted'+tie+'</span>':'';
           return '<tr class="'+(i<4?'r-counted':'')+'">'
-            +'<td>'+(i+1)+'</td><td>'+pname(p.playerId)+'</td><td><strong>'+p.sf+'</strong></td>'
+            +'<td>'+(i+1)+'</td><td>'+pname(p.playerId)+'</td>'
+            +'<td>'+gross+'</td><td>'+net+'</td>'
+            +'<td><strong>'+p.sf+'</strong></td>'
             +'<td>'+badge+'</td>'
             +'</tr>';
         }).join('')}</tbody>
       </table>
     </div>`;
 
-  // ── 2. INDIVIDUAL STABLEFORD (season) ──
+  // ── 3. INDIVIDUAL STABLEFORD (season) ──
   const sfSorted=Object.values(stats).filter(p=>allPlayers.find(x=>x.id===p.playerId))
     .sort((a,b)=>b.contrib-a.contrib||b.total-a.total);
   const sfSection=`
     <div class="r-section">
-      <div class="r-section-title">2. Individual Stableford — Season Standings</div>
+      <div class="r-section-title">3. Individual Stableford — Season Standings</div>
       <table class="r-table">
         <thead><tr><th>#</th><th>Player</th>${WEEKS.map(w=>`<th>Wk${w.num}</th>`).join('')}<th>Contrib</th><th>Total</th></tr></thead>
         <tbody>${sfSorted.map((p,i)=>`<tr class="${i<3?'r-top3':''}">
@@ -2552,12 +2591,12 @@ function buildReportHTML(week, forPrint){
       <div class="r-note">Payouts: 1st $${c.i1} · 2nd $${c.i2} · 3rd $${c.i3}</div>
     </div>`;
 
-  // ── 3. NET SKINS ──
+  // ── 4. NET SKINS ──
   const sk=skinsByWeek(week);
   const perSkin=sk.length&&c.skinsWeekly>0?((c.skinsWeekly)/sk.length).toFixed(2):'–';
   const skinsSection=`
     <div class="r-section">
-      <div class="r-section-title">3. Net Skins — Week ${week}</div>
+      <div class="r-section-title">4. Net Skins — Week ${week}</div>
       ${sk.length?`
         <div class="r-subtitle">${sk.length} skin${sk.length!==1?'s':''} · $${perSkin}/skin from $${c.skinsWeekly} pot</div>
         <table class="r-table">
@@ -2567,62 +2606,88 @@ function buildReportHTML(week, forPrint){
       :`<div class="r-empty">No skins won this week — pot carries.</div>`}
     </div>`;
 
-  // ── 4. LOW GROSS ──
+  // ── 5. LOW GROSS — calc avg per player, sort by avg asc ──
   const ga=ws.map(s=>({pid:s.playerId,v:rndGross(s)})).filter(x=>x.v>0);
   ga.sort((a,b)=>a.v-b.v);
   const minG=ga.length?ga[0].v:null;
   const lgWinners=ga.filter(x=>x.v===minG);
   const lgPrize=lgWinners.length?(c.lowGross||10)/lgWinners.length:0;
-  const lgSorted=Object.values(stats).filter(p=>allPlayers.find(x=>x.id===p.playerId)&&p.lgTotal>0)
-    .sort((a,b)=>(a.lgTotal/(b.lgWins||1))-(b.lgTotal/(a.lgWins||1)));
+  // Build player avg gross data — only players who have played at least once
+  const lgPlayerData=allPlayers.map(p=>{
+    const scores=[];
+    WEEKS.forEach(w=>{
+      const sc=wkS(w.num).find(s=>s.playerId===p.id);
+      if(sc){const g=rndGross(sc);if(g>0)scores.push({week:w.num,v:g});}
+    });
+    const avg=scores.length?scores.reduce((s,x)=>s+x.v,0)/scores.length:null;
+    const sp=stats[p.id];
+    return{pid:p.id,scores,avg,lgWins:sp?.lgWins||0,lgWin:sp?.lgWin||0};
+  }).filter(p=>p.scores.length>0).sort((a,b)=>(a.avg??999)-(b.avg??999));
   const lgSection=`
     <div class="r-section">
-      <div class="r-section-title">4. Low Gross</div>
-      <div class="r-subtitle">This week: ${minG!==null?ga.map(x=>`${pname(x.pid)} ${x.v}${x.v===minG&&lgWinners.length>1?' (tie)':''}`).slice(0,5).join(' · '):'No scores'} · Prize: $${lgPrize.toFixed(2)} each</div>
+      <div class="r-section-title">5. Low Gross</div>
+      <div class="r-subtitle">This week: ${minG!==null?ga.map(x=>pname(x.pid)+' '+x.v+(x.v===minG&&lgWinners.length>1?' (tie)':'')).slice(0,5).join(' · '):'No scores'} · Prize: $${lgPrize.toFixed(2)} each</div>
       <table class="r-table">
         <thead><tr><th>#</th><th>Player</th>${WEEKS.map(w=>`<th>Wk${w.num}</th>`).join('')}<th>Avg</th><th>Wins</th><th>Won</th></tr></thead>
-        <tbody>${sfSorted.map((p,i)=>{
+        <tbody>${lgPlayerData.map((p,i)=>{
           const weekCells=WEEKS.map(w=>{
-            const sc=wkS(w.num).find(s=>s.playerId===p.playerId);
+            const sc=wkS(w.num).find(s=>s.playerId===p.pid);
             const g=sc?rndGross(sc):null;
             const allG=wkS(w.num).map(s=>rndGross(s)).filter(x=>x>0);
             const isLow=g&&allG.length&&g===Math.min(...allG);
-            return`<td style="${isLow?'font-weight:700':'color:#888'}">${g||'–'}</td>`;
+            return'<td style="'+(isLow?'font-weight:700':'color:#888')+'">'+(g||'–')+'</td>';
           }).join('');
-          const sp=stats[p.playerId];
-          const avg=sp&&sp.lgTotal&&sp.lgWins?( sp.lgTotal / (wkS.length||1) ):null;
-          return`<tr><td>${i+1}</td><td>${pname(p.playerId)}</td>${weekCells}<td>–</td><td>${sp?.lgWins||'–'}</td><td class="${sp?.lgWin>0?'r-money':''}"> ${sp?.lgWin>0?'$'+sp.lgWin.toFixed(2):'–'}</td></tr>`;
+          return '<tr><td>'+(i+1)+'</td><td>'+pname(p.pid)+'</td>'+weekCells
+            +'<td><strong>'+(p.avg!==null?p.avg.toFixed(1):'–')+'</strong></td>'
+            +'<td>'+(p.lgWins||'–')+'</td>'
+            +'<td class="'+(p.lgWin>0?'r-money':'')+'">'+(p.lgWin>0?'$'+p.lgWin.toFixed(2):'–')+'</td>'
+            +'</tr>';
         }).join('')}</tbody>
       </table>
+      <div class="r-note">$${c.lowGross||10}/week · ties split · sorted by season avg (low = best)</div>
     </div>`;
 
-  // ── 5. LOW NET ──
+  // ── 6. LOW NET — calc avg per player, sort by avg asc ──
   const na=ws.map(s=>({pid:s.playerId,v:rndNet(s)})).filter(x=>x.v>0);
   na.sort((a,b)=>a.v-b.v);
   const minN=na.length?na[0].v:null;
   const lnWinners=na.filter(x=>x.v===minN);
   const lnPrize=lnWinners.length?(c.lowNet||10)/lnWinners.length:0;
+  const lnPlayerData=allPlayers.map(p=>{
+    const scores=[];
+    WEEKS.forEach(w=>{
+      const sc=wkS(w.num).find(s=>s.playerId===p.id);
+      if(sc){const n=rndNet(sc);if(n>0)scores.push({week:w.num,v:n});}
+    });
+    const avg=scores.length?scores.reduce((s,x)=>s+x.v,0)/scores.length:null;
+    const sp=stats[p.id];
+    return{pid:p.id,scores,avg,lnWins:sp?.lnWins||0,lnWin:sp?.lnWin||0};
+  }).filter(p=>p.scores.length>0).sort((a,b)=>(a.avg??999)-(b.avg??999));
   const lnSection=`
     <div class="r-section">
-      <div class="r-section-title">5. Low Net</div>
-      <div class="r-subtitle">This week: ${minN!==null?na.map(x=>`${pname(x.pid)} ${x.v}${x.v===minN&&lnWinners.length>1?' (tie)':''}`).slice(0,5).join(' · '):'No scores'} · Prize: $${lnPrize.toFixed(2)} each</div>
+      <div class="r-section-title">6. Low Net</div>
+      <div class="r-subtitle">This week: ${minN!==null?na.map(x=>pname(x.pid)+' '+x.v+(x.v===minN&&lnWinners.length>1?' (tie)':'')).slice(0,5).join(' · '):'No scores'} · Prize: $${lnPrize.toFixed(2)} each</div>
       <table class="r-table">
-        <thead><tr><th>#</th><th>Player</th>${WEEKS.map(w=>`<th>Wk${w.num}</th>`).join('')}<th>Wins</th><th>Won</th></tr></thead>
-        <tbody>${sfSorted.map((p,i)=>{
+        <thead><tr><th>#</th><th>Player</th>${WEEKS.map(w=>`<th>Wk${w.num}</th>`).join('')}<th>Avg</th><th>Wins</th><th>Won</th></tr></thead>
+        <tbody>${lnPlayerData.map((p,i)=>{
           const weekCells=WEEKS.map(w=>{
-            const sc=wkS(w.num).find(s=>s.playerId===p.playerId);
+            const sc=wkS(w.num).find(s=>s.playerId===p.pid);
             const n=sc?rndNet(sc):null;
             const allN=wkS(w.num).map(s=>rndNet(s)).filter(x=>x>0);
             const isLow=n&&allN.length&&n===Math.min(...allN);
-            return`<td style="${isLow?'font-weight:700':'color:#888'}">${n||'–'}</td>`;
+            return'<td style="'+(isLow?'font-weight:700':'color:#888')+'">'+(n||'–')+'</td>';
           }).join('');
-          const sp=stats[p.playerId];
-          return`<tr><td>${i+1}</td><td>${pname(p.playerId)}</td>${weekCells}<td>${sp?.lnWins||'–'}</td><td class="${sp?.lnWin>0?'r-money':''}"> ${sp?.lnWin>0?'$'+sp.lnWin.toFixed(2):'–'}</td></tr>`;
+          return '<tr><td>'+(i+1)+'</td><td>'+pname(p.pid)+'</td>'+weekCells
+            +'<td><strong>'+(p.avg!==null?p.avg.toFixed(1):'–')+'</strong></td>'
+            +'<td>'+(p.lnWins||'–')+'</td>'
+            +'<td class="'+(p.lnWin>0?'r-money':'')+'">'+(p.lnWin>0?'$'+p.lnWin.toFixed(2):'–')+'</td>'
+            +'</tr>';
         }).join('')}</tbody>
       </table>
+      <div class="r-note">$${c.lowNet||10}/week · ties split · sorted by season avg (low = best)</div>
     </div>`;
 
-  // ── 6. RINGER BOARD ──
+  // ── 7. RINGER BOARD ──
   const pars={};getAllHoles().forEach(h=>pars[h.h]=h.p);
   const ringerData=allPlayers.map(p=>{
     const best={};
@@ -2641,7 +2706,7 @@ function buildReportHTML(week, forPrint){
   const hn=getAllHoles().map(h=>h.h);
   const ringerSection=`
     <div class="r-section">
-      <div class="r-section-title">6. Ringer Board — Best Net Per Hole (Season)</div>
+      <div class="r-section-title">7. Ringer Board — Best Net Per Hole (Season)</div>
       <table class="r-table r-ringer">
         <thead>
           <tr><th>#</th><th>Player</th>${hn.map(h=>`<th>${h}</th>`).join('')}<th>Total</th></tr>
@@ -2656,19 +2721,14 @@ function buildReportHTML(week, forPrint){
       <div class="r-note">Payouts: 1st $${c.r1} · 2nd $${c.r2} · 3rd $${c.r3}</div>
     </div>`;
 
-  // ── 7. GB ──
+  // ── 8. GANG BANG (weekly result only) ──
   const gbW=c.gbWeekly||20;
   const tid=S.gbTargets[week];const ts=ws.find(s=>s.playerId===tid);
   const tNet=ts?rndNet(ts):null;
   const beaters=tNet!==null?ws.filter(s=>s.playerId!==tid&&rndNet(s)<tNet):[];
-  const gbSeasonRows=allPlayers.slice().sort((a,b)=>a.last.localeCompare(b.last)).map(p=>{
-    const tot=stats[p.id]?.gbWin||0;
-    const isT=S.gbTargets[week]===p.id;
-    return`<tr><td>${pname(p.id)}${isT?' <span class="r-badge-yes">Target</span>':''}</td><td class="${tot>0?'r-money':''}">${tot>0?'$'+tot.toFixed(2):'–'}</td></tr>`;
-  }).join('');
   const gbSection=`
     <div class="r-section">
-      <div class="r-section-title">7. GB — Week ${week} ($${gbW} pot)</div>
+      <div class="r-section-title">8. Gang Bang — Week ${week} ($${gbW} pot)</div>
       ${tid?`
         <table class="r-table">
           <thead><tr><th>Role</th><th>Player</th><th>Net Score</th><th>Result</th></tr></thead>
@@ -2678,11 +2738,7 @@ function buildReportHTML(week, forPrint){
             ${beaters.map(b=>`<tr class="r-counted"><td>Beater</td><td><strong>${pname(b.playerId)}</strong></td><td>${rndNet(b)}</td><td class="r-money">$${(gbW/beaters.length).toFixed(2)}</td></tr>`).join('')}
           </tbody>
         </table>`
-      :'<div class="r-empty">No GB target set for this week.</div>'}
-      <div class="r-subtitle" style="margin-top:10px">Season GB Totals</div>
-      <table class="r-table"><thead><tr><th>Player</th><th>Season Winnings</th></tr></thead>
-        <tbody>${gbSeasonRows}</tbody>
-      </table>
+      :'<div class="r-empty">No Gang Bang target set for this week.</div>'}
     </div>`;
 
   // ── 8. PRIZE MONEY ──
@@ -2717,6 +2773,7 @@ function buildReportHTML(week, forPrint){
       <div class="r-cap">Captain: ${wi?.cap}</div>
     </div>
     ${narrative?`<div class="r-section r-narrative"><div class="r-section-title">Captain's Notes</div><p>${narrative.replace(/\n/g,'<br>')}</p></div>`:''}
+    ${teamStandingsSection}
     ${teamSection}
     ${sfSection}
     ${skinsSection}
@@ -2739,7 +2796,7 @@ function buildReportHTML(week, forPrint){
         #report-preview .r-cap{font-size:12px;color:#666}
         #report-preview .r-section{margin-bottom:20px;page-break-inside:avoid}
         #report-preview .r-section-title{font-family:Georgia,serif;font-size:15px;font-weight:700;color:#2d7a4f;border-bottom:1px solid #2d7a4f;padding-bottom:3px;margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px}
-        #report-preview .r-narrative p{font-style:italic;color:#333}
+        #report-preview .r-narrative p{font-style:normal;color:#333}
         #report-preview .r-big-num{font-size:32px;font-weight:900;color:#2d7a4f;margin-bottom:8px}
         #report-preview .r-big-sub{font-size:14px;font-weight:400;color:#666}
         #report-preview .r-table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:6px}
@@ -2747,14 +2804,15 @@ function buildReportHTML(week, forPrint){
         #report-preview .r-table td{padding:4px 8px;border-bottom:1px solid #eee}
         #report-preview .r-table tr:last-child td{border-bottom:none}
         #report-preview .r-counted td{background:#f0fff5}
+        #report-preview .r-ours td{background:#e6f3ff!important;font-weight:600}
         #report-preview .r-top3 td{background:#fffce0}
         #report-preview .r-target td{background:#fff3e0}
         #report-preview .r-money{color:#2d7a4f;font-weight:700}
         #report-preview .r-badge-yes{background:#d4edda;color:#155724;padding:1px 6px;border-radius:4px;font-size:11px}
         #report-preview .r-badge-no{background:#f8d7da;color:#721c24;padding:1px 6px;border-radius:4px;font-size:11px}
-        #report-preview .r-note{font-size:11px;color:#666;font-style:italic}
+        #report-preview .r-note{font-size:11px;color:#666;font-style:normal}
         #report-preview .r-subtitle{font-size:12px;color:#555;margin-bottom:6px}
-        #report-preview .r-empty{color:#888;font-style:italic;font-size:12px}
+        #report-preview .r-empty{color:#888;font-style:normal;font-size:12px}
         #report-preview .r-footer{text-align:center;font-size:10px;color:#aaa;margin-top:20px;padding-top:10px;border-top:1px solid #eee}
         #report-preview .r-ringer th,#report-preview .r-ringer td{padding:3px 5px;font-size:11px}
       </style>
@@ -2774,7 +2832,7 @@ function buildReportHTML(week, forPrint){
     .r-cap{font-size:11px;color:#666}
     .r-section{margin-bottom:22px;page-break-inside:avoid}
     .r-section-title{font-size:13px;font-weight:700;color:#2d7a4f;border-bottom:1.5px solid #2d7a4f;padding-bottom:3px;margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px}
-    .r-narrative p{font-style:italic;color:#333;line-height:1.7;font-size:12px}
+    .r-narrative p{font-style:normal;color:#333;line-height:1.7;font-size:12px}
     .r-big-num{font-size:36px;font-weight:900;color:#2d7a4f;margin-bottom:6px;line-height:1}
     .r-big-sub{font-size:13px;font-weight:400;color:#666}
     .r-table{width:100%;border-collapse:collapse;font-size:11px;margin-bottom:5px}
@@ -2783,14 +2841,15 @@ function buildReportHTML(week, forPrint){
     .r-table tr:last-child td{border-bottom:none}
     .r-table tr:nth-child(even) td{background:#f9f9f9}
     .r-counted td{background:#f0fff5!important}
+    .r-ours td{background:#e6f3ff!important;font-weight:600}
     .r-top3 td{background:#fffce0!important}
     .r-target td{background:#fff3e0!important}
     .r-money{color:#2d7a4f;font-weight:700}
     .r-badge-yes{background:#d4edda;color:#155724;padding:1px 6px;border-radius:3px;font-size:10px}
     .r-badge-no{background:#f8d7da;color:#721c24;padding:1px 6px;border-radius:3px;font-size:10px}
-    .r-note{font-size:10px;color:#666;font-style:italic;margin-top:3px}
+    .r-note{font-size:10px;color:#666;font-style:normal;margin-top:3px}
     .r-subtitle{font-size:11px;color:#555;margin-bottom:5px}
-    .r-empty{color:#888;font-style:italic;font-size:11px}
+    .r-empty{color:#888;font-style:normal;font-size:11px}
     .r-footer{text-align:center;font-size:9px;color:#bbb;margin-top:24px;padding-top:10px;border-top:1px solid #eee}
     .r-ringer th,.r-ringer td{padding:2px 4px;font-size:10px}
     @media print{
