@@ -551,6 +551,7 @@ tbody tr:hover td{background:var(--surface2)}
     <button class="tab" onclick="switchTab('st','lgn',this)">Low Gross/Net</button>
     <button class="tab" onclick="switchTab('st','ringer',this)">Ringer</button>
     <button class="tab" onclick="switchTab('st','gb',this)">GB</button>
+    <button class="tab" onclick="switchTab('st','bym',this)">Beat Your Meat</button>
     <button class="tab" onclick="switchTab('st','prize',this)">Prize Money</button>
   </div>
   <div id="st-team"></div>
@@ -559,6 +560,7 @@ tbody tr:hover td{background:var(--surface2)}
   <div id="st-lgn" style="display:none"></div>
   <div id="st-ringer" style="display:none"></div>
   <div id="st-gb" style="display:none"></div>
+  <div id="st-bym" style="display:none"></div>
   <div id="st-prize" style="display:none"></div>
 </div>
 
@@ -1007,7 +1009,8 @@ function skinsByWeek(w){
 function calcAllStats(){
   const m={};
   S.players.forEach(p=>{m[p.id]={playerId:p.id,contrib:0,total:0,weekly:{},skins:0,skinsWin:0,
-    lgWins:0,lnWins:0,lgTotal:0,lnTotal:0,lgWin:0,lnWin:0,gbWin:0,ringerTotal:null,ringerBest:{}}});
+    lgWins:0,lnWins:0,lgTotal:0,lnTotal:0,lgWin:0,lnWin:0,gbWin:0,ringerTotal:null,ringerBest:{},
+    bymWins:0,bymWeekly:{}}}); // BYM: Beat Your Meat — >18 SF pts per round
   const c=S.cfg;
   for(const w of WEEKS){
     const ws=wkS(w.num);if(!ws.length)continue;
@@ -1058,6 +1061,16 @@ function calcAllStats(){
         beaters.forEach(s=>{if(m[s.playerId])m[s.playerId].gbWin+=sh});
       }
     }
+    // BYM — Beat Your Meat: score > 18 Stableford points
+    const BYM_THRESHOLD=18;
+    ws.forEach(s=>{
+      const sf=rndSF(s);
+      const beat=sf>BYM_THRESHOLD;
+      if(m[s.playerId]){
+        m[s.playerId].bymWeekly[w.num]={sf,beat};
+        if(beat)m[s.playerId].bymWins++;
+      }
+    });
   }
   // ringer — use getStrokes9FromScore so saved strokes9 on the record takes priority
   S.players.forEach(p=>{
@@ -1215,6 +1228,8 @@ function renderDashTiles(){
   const rgRank=Object.values(stats).filter(x=>x.ringerTotal!==null&&S.players.find(p=>p.id===x.playerId)).sort((a,b)=>(a.ringerTotal??999)-(b.ringerTotal??999));
   const rgPlace=rgRank.findIndex(x=>x.playerId===currentPlayer.id)+1;
   const prRank=rankBy(stats,'totalPrize');const prPlace=prRank.findIndex(x=>x.playerId===currentPlayer.id)+1;
+  const bymRank=Object.values(stats).filter(p=>S.players.find(x=>x.id===p.playerId)).sort((a,b)=>b.bymWins-a.bymWins||b.total-a.total);
+  const bymPlace=bymRank.findIndex(x=>x.playerId===currentPlayer.id)+1;
   const weeksPlayed=Object.values(me.weekly).length;
   const avgLg=weeksPlayed&&me.lgTotal?Math.round(me.lgTotal/Math.max(1,Object.keys(me.weekly).filter(w=>wkS(parseInt(w)).find(s=>s.playerId===currentPlayer.id)).length)):0;
   const avgLn=weeksPlayed&&me.lnTotal?Math.round(me.lnTotal/Math.max(1,Object.keys(me.weekly).filter(w=>wkS(parseInt(w)).find(s=>s.playerId===currentPlayer.id)).length)):0;
@@ -1234,6 +1249,7 @@ function renderDashTiles(){
     tile('Low Net',avgLn||'–',lnPlace>0?lnPlace:null,'avg net')+
     tile('Ringer Board',me.ringerTotal??'–',rgPlace>0?rgPlace:null,'best 9-hole net total')+
     tile('GB','$'+(me.gbWin||0).toFixed(0),null,'cash won')+
+    tile('Beat Your Meat',me.bymWins||0,me.bymWins>0?bymPlace:null,'rounds beating 18 pts')+
     tile('Prize Money','$'+(me.totalPrize||0).toFixed(0),prPlace,'total winnings');
 }
 
@@ -2130,6 +2146,7 @@ function renderStandingsTab(tab){
   if(tab==='lgn')renderStLGN();
   if(tab==='ringer')renderStRinger();
   if(tab==='gb')renderStGB();
+  if(tab==='bym')renderStBYM();
   if(tab==='prize')renderStPrize();
 }
 
@@ -2356,6 +2373,53 @@ function renderStGB(){
         return`<tr class="${p.id===currentPlayer?.id?'tr-us':''}"><td>${pname(p.id)}${p.id===currentPlayer?.id?` <span class="badge b-us">You</span>`:''}</td>${cells.join('')}<td style="color:${playerTotals[p.id]>0?'var(--g2)':'var(--txt4)'};font-weight:${playerTotals[p.id]>0?600:400}">${playerTotals[p.id]>0?'$'+playerTotals[p.id].toFixed(2):'–'}</td></tr>`;
       }).join('')}</tbody>
     </table></div>
+  </div>`;
+}
+
+function renderStBYM(){
+  const stats=calcAllStats();
+  const BYM_THRESHOLD=18;
+  // Sort by most wins YTD, then by total SF as tiebreaker
+  const sorted=Object.values(stats)
+    .filter(p=>S.players.find(x=>x.id===p.playerId))
+    .sort((a,b)=>b.bymWins-a.bymWins||b.total-a.total);
+
+  // Per-week winners summary (who beat 18 each week)
+  const weekSummary=WEEKS.map(w=>{
+    const ws=wkS(w.num);if(!ws.length)return null;
+    const winners=ws.filter(s=>rndSF(s)>BYM_THRESHOLD);
+    return{week:w,winners:winners.map(s=>({pid:s.playerId,sf:rndSF(s)}))};
+  }).filter(Boolean);
+
+  // Table: rank | player | each week cell | YTD wins
+  const rows=sorted.map((p,i)=>{
+    const weekCells=WEEKS.map(w=>{
+      const wd=p.bymWeekly[w.num];
+      if(!wd)return'<td class="tgr">–</td>';
+      if(wd.beat)return`<td class="tg2" title="${wd.sf} pts"><strong>✓</strong><br><span style="font-size:10px">${wd.sf}pts</span></td>`;
+      return`<td class="tgr" title="${wd.sf} pts" style="color:var(--txt4)">${wd.sf}<br><span style="font-size:10px">pts</span></td>`;
+    }).join('');
+    const isMe=p.playerId===currentPlayer?.id;
+    return`<tr class="${i===0&&p.bymWins>0?'tr-gold':''} ${isMe?'tr-us':''}">
+      <td style="font-weight:700;color:${i===0&&p.bymWins>0?'var(--gold)':i===1&&p.bymWins>0?'var(--txt3)':'var(--txt4)'}">${i+1}</td>
+      <td>${pname(p.playerId)}${isMe?` <span class="badge b-us">You</span>`:''}</td>
+      ${weekCells}
+      <td class="fw" style="color:${p.bymWins>0?'var(--g2)':'var(--txt4)'};font-size:14px;font-weight:700">${p.bymWins>0?p.bymWins:'–'}</td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('st-bym').innerHTML=`<div class="card">
+    <div class="card-title">Beat Your Meat</div>
+    <div class="alert">Score more than ${BYM_THRESHOLD} Stableford points in a round to "beat your meat" · ✓ = beat the target · points shown for reference</div>
+    <div class="twrap"><table>
+      <thead><tr>
+        <th>#</th><th>Player</th>
+        ${WEEKS.map(w=>`<th>Wk${w.num}</th>`).join('')}
+        <th>YTD ✓</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div>
+    <div class="cap mt8">Target: ${BYM_THRESHOLD}+ Stableford points · Green ✓ = beat the target that week</div>
   </div>`;
 }
 
@@ -2741,12 +2805,40 @@ function buildReportHTML(week, forPrint){
       :'<div class="r-empty">No Gang Bang target set for this week.</div>'}
     </div>`;
 
-  // ── 8. PRIZE MONEY ──
+  // ── 9. BEAT YOUR MEAT ──
+  const BYM_THRESHOLD=18;
+  const bymPlayers=allPlayers.map(p=>{
+    const weeks=WEEKS.map(w=>{
+      const sc=wkS(w.num).find(s=>s.playerId===p.id);
+      if(!sc)return{week:w.num,played:false};
+      const sf=rndSF(sc);
+      return{week:w.num,played:true,sf,beat:sf>BYM_THRESHOLD};
+    });
+    const wins=weeks.filter(w=>w.beat).length;
+    return{pid:p.id,weeks,wins};
+  }).sort((a,b)=>b.wins-a.wins||a.pid.localeCompare(b.pid));
+  const thisWeekBeat=bymPlayers.filter(p=>p.weeks.find(w=>w.week===week&&w.beat));
+  const bymSection=`
+    <div class="r-section">
+      <div class="r-section-title">9. Beat Your Meat</div>
+      <div class="r-subtitle">Beat ${BYM_THRESHOLD}+ Stableford points in a round · This week: ${thisWeekBeat.length?thisWeekBeat.map(p=>pname(p.pid)+' ('+p.weeks.find(w=>w.week===week)?.sf+' pts)').join(', '):'No one beat the target'}</div>
+      <table class="r-table">
+        <thead><tr><th>#</th><th>Player</th>${WEEKS.map(w=>`<th>Wk${w.num}</th>`).join('')}<th>YTD ✓</th></tr></thead>
+        <tbody>${bymPlayers.map((p,i)=>{
+          const weekCells=p.weeks.map(w=>{
+            if(!w.played)return'<td style="color:#bbb">–</td>';
+            return'<td style="'+(w.beat?'font-weight:700;color:#2d7a4f':'color:#aaa')+'">'+(w.beat?'✓ '+w.sf:w.sf)+'</td>';
+          }).join('');
+          return`<tr class="${i<1&&p.wins>0?'r-top3':''}"><td>${i+1}</td><td>${pname(p.pid)}</td>${weekCells}<td><strong>${p.wins||'–'}</strong></td></tr>`;
+        }).join('')}</tbody>
+      </table>
+      <div class="r-note">✓ = scored more than ${BYM_THRESHOLD} Stableford points that round</div>
+    </div>`;
   const prizeSorted=Object.values(stats).filter(p=>allPlayers.find(x=>x.id===p.playerId))
     .sort((a,b)=>(b.totalPrize||0)-(a.totalPrize||0));
   const prizeSection=`
     <div class="r-section">
-      <div class="r-section-title">8. Prize Money — Season Totals</div>
+      <div class="r-section-title">10. Prize Money — Season Totals</div>
       <table class="r-table">
         <thead><tr><th>#</th><th>Player</th><th>Skins</th><th>Low Gr.</th><th>Low Net</th><th>GB</th><th>Total</th></tr></thead>
         <tbody>${prizeSorted.map((p,i)=>{
@@ -2781,6 +2873,7 @@ function buildReportHTML(week, forPrint){
     ${lnSection}
     ${ringerSection}
     ${gbSection}
+    ${bymSection}
     ${prizeSection}
     <div class="r-footer">Generated ${new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'})} · Serenity NOW!!! Golf League</div>`;
 
