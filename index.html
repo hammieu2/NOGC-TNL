@@ -648,7 +648,7 @@ tbody tr:hover td{background:var(--surface2)}
   <div id="ad-pool" style="display:none">
     <div class="card">
       <div class="card-title">Season Pool / $$</div>
-      <div class="alert-green alert">10 players × $100 = $1,000 · Skins $20/wk · GB $20/wk</div>
+      <div class="alert-green alert">10 players × $100 = $1,000 · Skins $20/wk · GB $20/wk · Prize competitions run weeks 1–7 only · Weeks 8–10 are score-only</div>
       <div class="form2">
         <div class="fg"><label>Players</label><input type="number" id="pp-players" value="10" oninput="updatePoolDisplay()"></div>
         <div class="fg"><label>Entry Fee ($)</label><input type="number" id="pp-fee" value="100" oninput="updatePoolDisplay()"></div>
@@ -785,8 +785,13 @@ const WEEKS=[
   {num:4,date:'6/16',opp:'Full Monty',cap:'Rasmussen'},
   {num:5,date:'6/23',opp:'Grinders',cap:'Claridge'},
   {num:6,date:'6/30',opp:'In it To Win it',cap:'Tinucci'},
-  {num:7,date:'7/7',opp:'Wagyu Hand Roll',cap:'Dunleavy'}
+  {num:7,date:'7/7',opp:'Wagyu Hand Roll',cap:'Dunleavy'},
+  {num:8,date:'7/14',opp:'TBD',cap:'TBD'},
+  {num:9,date:'7/21',opp:'TBD',cap:'TBD'},
+  {num:10,date:'7/28',opp:'TBD',cap:'TBD'}
 ];
+// Prize money (skins, GB, Low Gross, Low Net) only runs for weeks 1-7
+const PRIZE_WEEKS=WEEKS.filter(w=>w.num<=7);
 const SC={
   front:[{h:1,p:5,hcp:11,y:513},{h:2,p:4,hcp:1,y:444},{h:3,p:4,hcp:5,y:404},
     {h:4,p:4,hcp:15,y:345},{h:5,p:3,hcp:9,y:194},{h:6,p:4,hcp:7,y:389},
@@ -1012,9 +1017,12 @@ function calcAllStats(){
     lgWins:0,lnWins:0,lgTotal:0,lnTotal:0,lgWin:0,lnWin:0,gbWin:0,ringerTotal:null,ringerBest:{},
     bymWins:0,bymWeekly:{}}}); // BYM: Beat Your Meat — >18 SF pts per round
   const c=S.cfg;
+  // All 10 weeks count for: stableford, ringer, BYM
+  // Only weeks 1-7 (PRIZE_WEEKS) count for: skins, low gross, low net, GB
   for(const w of WEEKS){
     const ws=wkS(w.num);if(!ws.length)continue;
-    // stableford — top4 with fractional tie handling
+    const isPrizeWeek=PRIZE_WEEKS.some(pw=>pw.num===w.num);
+    // stableford — all weeks
     const pts=ws.map(s=>({playerId:s.playerId,sf:rndSF(s)}));
     top4(pts).forEach(p=>{
       if(!m[p.playerId])return;
@@ -1022,46 +1030,48 @@ function calcAllStats(){
       m[p.playerId].contrib+=p.contributed*p.sf;
       m[p.playerId].weekly[w.num]={pts:p.sf,contrib:p.contributed};
     });
-    // skins
-    const sk=skinsByWeek(w.num);
-    const perSkin=sk.length?(c.skinsWeekly||20)/sk.length:0;
-    sk.forEach(s=>{if(m[s.playerId]){m[s.playerId].skins++;m[s.playerId].skinsWin+=perSkin}});
-    // low gross — split prize on tie
-    const gs=ws.map(s=>({pid:s.playerId,v:rndGross(s)})).filter(x=>x.v>0);
-    if(gs.length){
-      const mn=Math.min(...gs.map(x=>x.v));
-      const winners=gs.filter(x=>x.v===mn);
-      const prize=(c.lowGross||10)/winners.length;
-      gs.forEach(x=>{
-        if(!m[x.pid])return;
-        m[x.pid].lgTotal+=x.v;
-        if(x.v===mn){m[x.pid].lgWins++;m[x.pid].lgWin+=prize;}
-      });
-    }
-    // low net — split prize on tie
-    const ns=ws.map(s=>({pid:s.playerId,v:rndNet(s)})).filter(x=>x.v>0);
-    if(ns.length){
-      const mn=Math.min(...ns.map(x=>x.v));
-      const winners=ns.filter(x=>x.v===mn);
-      const prize=(c.lowNet||10)/winners.length;
-      ns.forEach(x=>{
-        if(!m[x.pid])return;
-        m[x.pid].lnTotal+=x.v;
-        if(x.v===mn){m[x.pid].lnWins++;m[x.pid].lnWin+=prize;}
-      });
-    }
-    // gang bang
-    const tid=S.gbTargets[w.num];const ts=ws.find(s=>s.playerId===tid);
-    const tNet=ts?rndNet(ts):null;
-    if(tNet!==null){
-      const beaters=ws.filter(s=>s.playerId!==tid&&rndNet(s)<tNet);
-      if(!beaters.length&&ts&&m[tid])m[tid].gbWin+=(c.gbWeekly||20);
-      else if(beaters.length){
-        const sh=(c.gbWeekly||20)/beaters.length;
-        beaters.forEach(s=>{if(m[s.playerId])m[s.playerId].gbWin+=sh});
+    if(isPrizeWeek){
+      // skins — prize weeks only
+      const sk=skinsByWeek(w.num);
+      const perSkin=sk.length?(c.skinsWeekly||20)/sk.length:0;
+      sk.forEach(s=>{if(m[s.playerId]){m[s.playerId].skins++;m[s.playerId].skinsWin+=perSkin}});
+      // low gross — prize weeks only, split prize on tie
+      const gs=ws.map(s=>({pid:s.playerId,v:rndGross(s)})).filter(x=>x.v>0);
+      if(gs.length){
+        const mn=Math.min(...gs.map(x=>x.v));
+        const winners=gs.filter(x=>x.v===mn);
+        const prize=(c.lowGross||10)/winners.length;
+        gs.forEach(x=>{
+          if(!m[x.pid])return;
+          m[x.pid].lgTotal+=x.v;
+          if(x.v===mn){m[x.pid].lgWins++;m[x.pid].lgWin+=prize;}
+        });
+      }
+      // low net — prize weeks only, split prize on tie
+      const ns=ws.map(s=>({pid:s.playerId,v:rndNet(s)})).filter(x=>x.v>0);
+      if(ns.length){
+        const mn=Math.min(...ns.map(x=>x.v));
+        const winners=ns.filter(x=>x.v===mn);
+        const prize=(c.lowNet||10)/winners.length;
+        ns.forEach(x=>{
+          if(!m[x.pid])return;
+          m[x.pid].lnTotal+=x.v;
+          if(x.v===mn){m[x.pid].lnWins++;m[x.pid].lnWin+=prize;}
+        });
+      }
+      // GB — prize weeks only
+      const tid=S.gbTargets[w.num];const ts=ws.find(s=>s.playerId===tid);
+      const tNet=ts?rndNet(ts):null;
+      if(tNet!==null){
+        const beaters=ws.filter(s=>s.playerId!==tid&&rndNet(s)<tNet);
+        if(!beaters.length&&ts&&m[tid])m[tid].gbWin+=(c.gbWeekly||20);
+        else if(beaters.length){
+          const sh=(c.gbWeekly||20)/beaters.length;
+          beaters.forEach(s=>{if(m[s.playerId])m[s.playerId].gbWin+=sh});
+        }
       }
     }
-    // BYM — Beat Your Meat: score > 18 Stableford points
+    // BYM — all weeks
     const BYM_THRESHOLD=18;
     ws.forEach(s=>{
       const sf=rndSF(s);
@@ -2215,7 +2225,7 @@ function renderStSkins(){
   const stats=calcAllStats();const sorted=rankBy(stats,'skins');const c=S.cfg;
   document.getElementById('st-skins').innerHTML=`<div class="card">
     <div class="card-title">Net Skins — Season Tracker</div>
-    <div class="alert">$${c.skinsWeekly}/week · split among skins won that week · $${c.skinsWeekly*7} total season allocation</div>
+    <div class="alert">$${c.skinsWeekly}/week · split among skins won that week · $${c.skinsWeekly*PRIZE_WEEKS.length} total season allocation (weeks 1–${PRIZE_WEEKS.length})</div>
     <div class="twrap"><table>
       <thead><tr><th>#</th><th>Player</th>${WEEKS.map(w=>`<th>Wk${w.num}</th>`).join('')}<th>Skins</th><th>Won</th></tr></thead>
       <tbody>${sorted.map((p,i)=>{
@@ -2359,7 +2369,7 @@ function renderStGB(){
   });
   document.getElementById('st-gb').innerHTML=`<div class="card">
     <div class="card-title">GB</div>
-    <div class="alert">$${gbW}/wk · Target wins all if unbeaten · Beaters split $${gbW} · $${gbW*7} total season · Sorted A–Z (you always first)</div>
+    <div class="alert">$${gbW}/wk · Target wins all if unbeaten · Beaters split $${gbW} · $${gbW*PRIZE_WEEKS.length} total (weeks 1–${PRIZE_WEEKS.length}) · Sorted A–Z (you always first)</div>
     <div class="twrap"><table>
       <thead><tr><th>Player</th>${WEEKS.map(w=>`<th>Wk${w.num}<br><span style="font-size:9px;font-weight:400;font-family:Inter">${w.date}</span></th>`).join('')}<th>Total</th></tr></thead>
       <tbody>${gbPlayers.map(p=>{
@@ -2708,7 +2718,7 @@ function buildReportHTML(week, forPrint){
             +'</tr>';
         }).join('')}</tbody>
       </table>
-      <div class="r-note">$${c.lowGross||10}/week · ties split · sorted by season avg (low = best)</div>
+      <div class="r-note">$${c.lowGross||10}/week · ties split · prize weeks 1–${PRIZE_WEEKS.length} only · sorted by season avg (low = best)</div>
     </div>`;
 
   // ── 6. LOW NET — calc avg per player, sort by avg asc ──
@@ -2748,7 +2758,7 @@ function buildReportHTML(week, forPrint){
             +'</tr>';
         }).join('')}</tbody>
       </table>
-      <div class="r-note">$${c.lowNet||10}/week · ties split · sorted by season avg (low = best)</div>
+      <div class="r-note">$${c.lowNet||10}/week · ties split · prize weeks 1–${PRIZE_WEEKS.length} only · sorted by season avg (low = best)</div>
     </div>`;
 
   // ── 7. RINGER BOARD ──
