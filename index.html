@@ -1125,20 +1125,32 @@ function calcAllStats(){
   Object.entries(sfPrizeContrib).forEach(([pid,val])=>{
     if(m[pid])m[pid].sfPrizeContrib=val;
   });
-  // Rank by prize-week contrib for payout
+  // Rank by prize-week contrib for payout — with tie splitting
   const sfPrizeRanked=Object.entries(sfPrizeContrib).sort((a,b)=>b[1]-a[1]);
-  sfPrizeRanked.forEach(([pid],i)=>{
-    if(i<sfPayouts.length&&m[pid])m[pid].sfWin=sfPayouts[i];
-  });
+  let sfIdx=0;
+  while(sfIdx<sfPrizeRanked.length&&sfIdx<sfPayouts.length){
+    const tiedVal=sfPrizeRanked[sfIdx][1];
+    const tiedGroup=sfPrizeRanked.filter(([,v])=>Math.abs(v-tiedVal)<0.001);
+    const slots=Math.min(tiedGroup.length,sfPayouts.length-sfIdx);
+    const split=sfPayouts.slice(sfIdx,sfIdx+slots).reduce((s,v)=>s+v,0)/slots;
+    tiedGroup.slice(0,slots).forEach(([pid])=>{if(m[pid])m[pid].sfWin=split;});
+    sfIdx+=tiedGroup.length;
+  }
 
-  // Ringer: award top 3 by ringerTotal (lower = better)
+  // Ringer: award top 3 by ringerTotal (lower = better) — with tie splitting
   const ringerPayouts=[c.r1||75, c.r2||40, c.r3||15];
   const ringerRanked=Object.values(m)
     .filter(p=>p.ringerTotal!==null)
     .sort((a,b)=>a.ringerTotal-b.ringerTotal);
-  ringerRanked.forEach((p,i)=>{
-    if(i<ringerPayouts.length)p.ringerWin=ringerPayouts[i];
-  });
+  let rIdx=0;
+  while(rIdx<ringerRanked.length&&rIdx<ringerPayouts.length){
+    const tiedTotal=ringerRanked[rIdx].ringerTotal;
+    const tiedGroup=ringerRanked.filter(p=>p.ringerTotal===tiedTotal);
+    const slots=Math.min(tiedGroup.length,ringerPayouts.length-rIdx);
+    const split=ringerPayouts.slice(rIdx,rIdx+slots).reduce((s,v)=>s+v,0)/slots;
+    tiedGroup.slice(0,slots).forEach(p=>{p.ringerWin=split;});
+    rIdx+=tiedGroup.length;
+  }
 
   Object.values(m).forEach(p=>{
     p.totalPrize=(p.skinsWin||0)+(p.lgWin||0)+(p.lnWin||0)+(p.gbWin||0)+(p.sfWin||0)+(p.ringerWin||0);
