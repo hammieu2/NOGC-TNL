@@ -2540,7 +2540,7 @@ function renderStPrize(){
     .filter(p=>(p.sfPrizeContrib||0)>0||(p.contrib||0)>0)
     .sort((a,b)=>(b.sfPrizeContrib||0)-(a.sfPrizeContrib||0));
   const sfDetailRows=sfRanked.map((p,i)=>{
-    const prize=i<sfPrizePayouts.length?sfPrizePayouts[i]:0;
+    const prize=p.sfWin||0; // use pre-calculated split amount from calcAllStats
     const prizeWeekContrib=(p.sfPrizeContrib||0).toFixed(1);
     const allWeekContrib=(p.contrib||0).toFixed(1);
     const diff=parseFloat(allWeekContrib)-parseFloat(prizeWeekContrib);
@@ -2548,15 +2548,15 @@ function renderStPrize(){
       <td style="font-weight:700;color:${placeColor(i)}">${i+1}</td>
       <td>${pname(p.playerId)}</td>
       <td class="fw">${prizeWeekContrib} pts <span style="color:var(--txt4);font-size:10px;font-weight:400">${diff>0?'(+'+diff.toFixed(1)+' wks 8-10 excl.)':''}</span></td>
-      <td class="${prize>0?'tg fw':''}">${prize>0?'$'+prize:'–'}</td>
+      <td class="${prize>0?'tg fw':''}">${prize>0?'$'+prize.toFixed(2):'–'}</td>
     </tr>`;
   }).join('');
 
-  // Ringer detail — uses ringerTotal from calcAllStats (already prize-week filtered)
+  // Ringer detail — uses ringerTotal and ringerWin from calcAllStats (ties already split)
   const ringerPayouts=[c.r1||75,c.r2||40,c.r3||15];
   const ringerRanked=[...sorted].filter(p=>p.ringerTotal!==null).sort((a,b)=>a.ringerTotal-b.ringerTotal);
   const ringerDetailRows=ringerRanked.map((p,i)=>{
-    const prize=i<ringerPayouts.length?ringerPayouts[i]:0;
+    const prize=p.ringerWin||0; // use pre-calculated split amount from calcAllStats
     return`<tr class="${i<3?'tr-gold':''}">
       <td style="font-weight:700;color:${placeColor(i)}">${i+1}</td>
       <td>${pname(p.playerId)}</td>
