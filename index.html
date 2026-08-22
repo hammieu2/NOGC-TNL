@@ -1123,7 +1123,11 @@ function calcAllStats(){
   }
   // Store prize-week contrib on stats object so renderStPrize uses the right number
   Object.entries(sfPrizeContrib).forEach(([pid,val])=>{
-    if(m[pid])m[pid].sfPrizeContrib=val;
+    if(m[pid]){
+      m[pid].sfPrizeContrib=val;
+      m[pid].contribRegular=val;                              // weeks 1-7 only
+      m[pid].contribPlayoff=Math.max(0,(m[pid].contrib||0)-val); // weeks 8-10 only
+    }
   });
   // Rank by prize-week contrib for payout — with tie splitting
   const sfPrizeRanked=Object.entries(sfPrizeContrib).sort((a,b)=>b[1]-a[1]);
@@ -2235,41 +2239,59 @@ function renderStTeam(){
   }).join('');
 }
 
-let sfSortKey='contrib'; // default: contributed points
+let sfSortKey='contribRegular'; // default: regular season contributed points
 function renderStStableford(sortKey){
   if(sortKey)sfSortKey=sortKey;
   const stats=calcAllStats();
-  // Sort: primary = chosen key, secondary = contrib then total
   const arr=Object.values(stats).filter(p=>S.players.find(x=>x.id===p.playerId));
-  if(sfSortKey==='contrib')arr.sort((a,b)=>b.contrib-a.contrib||b.total-a.total);
-  else if(sfSortKey==='total')arr.sort((a,b)=>b.total-a.total||b.contrib-a.contrib);
+
+  // Sort logic
+  if(sfSortKey==='contribRegular')arr.sort((a,b)=>(b.contribRegular||0)-(a.contribRegular||0)||(b.total||0)-(a.total||0));
+  else if(sfSortKey==='contribPlayoff')arr.sort((a,b)=>(b.contribPlayoff||0)-(a.contribPlayoff||0)||(b.total||0)-(a.total||0));
+  else if(sfSortKey==='contrib')arr.sort((a,b)=>(b.contrib||0)-(a.contrib||0)||(b.total||0)-(a.total||0));
+  else if(sfSortKey==='total')arr.sort((a,b)=>(b.total||0)-(a.total||0)||(b.contribRegular||0)-(a.contribRegular||0));
   else{
-    // sort by a specific week number
     const wn=parseInt(sfSortKey);
-    arr.sort((a,b)=>(b.weekly[wn]?.pts||0)-(a.weekly[wn]?.pts||0)||b.contrib-a.contrib);
+    arr.sort((a,b)=>(b.weekly[wn]?.pts||0)-(a.weekly[wn]?.pts||0)||(b.contribRegular||0)-(a.contribRegular||0));
   }
+
   const thStyle=(k)=>`cursor:pointer;text-decoration:${sfSortKey===k?'underline':'none'};white-space:nowrap`;
+
+  // Split weeks into regular and playoff for column headers
+  const regWeeks=WEEKS.filter(w=>!w.label);
+  const poWeeks=WEEKS.filter(w=>w.label);
+
   document.getElementById('st-stableford').innerHTML=`<div class="card">
     <div class="card-title">Stableford Points — Season Standings</div>
-    <div class="cap" style="margin-bottom:8px">Click column header to sort. Default: Points Contributed then Total.</div>
+    <div class="cap" style="margin-bottom:8px">Click column header to sort. Green cells = counted toward team score that week.</div>
     <div class="twrap"><table>
-      <thead><tr>
-        <th>#</th><th>Player</th>
-        ${WEEKS.map(w=>`<th onclick="renderStStableford('${w.num}')" style="${thStyle(''+w.num)}">${w.label?"P"+(w.num-7):"Wk"+w.num}</th>`).join('')}
-        <th onclick="renderStStableford('contrib')" style="${thStyle('contrib')}">Contrib ▼</th>
-        <th onclick="renderStStableford('total')" style="${thStyle('total')}">Total</th>
-      </tr></thead>
+      <thead>
+        <tr>
+          <th>#</th><th>Player</th>
+          ${regWeeks.map(w=>`<th onclick="renderStStableford('${w.num}')" style="${thStyle(''+w.num)}" title="Week ${w.num}">Wk${w.num}</th>`).join('')}
+          ${poWeeks.map(w=>`<th onclick="renderStStableford('${w.num}')" style="${thStyle(''+w.num)};color:var(--gold)" title="${w.label}">P${w.num-7}</th>`).join('')}
+          <th onclick="renderStStableford('contribRegular')" style="${thStyle('contribRegular')}" title="Points contributed to team score, weeks 1–7 only">Reg Contrib ▼</th>
+          <th onclick="renderStStableford('contribPlayoff')" style="${thStyle('contribPlayoff')}" title="Points contributed in playoff weeks">PO Contrib</th>
+          <th onclick="renderStStableford('contrib')" style="${thStyle('contrib')}" title="Total contributed across all weeks">Total Contrib</th>
+          <th onclick="renderStStableford('total')" style="${thStyle('total')}" title="Total points scored (all weeks, whether counted or not)">Total Pts</th>
+        </tr>
+      </thead>
       <tbody>${arr.map((p,i)=>`<tr class="${i<3?'tr-gold':''} ${p.playerId===currentPlayer?.id?'tr-us':''}">
         <td style="font-weight:700;color:${i===0?'var(--gold)':i===1?'var(--txt3)':'var(--txt4)'}">${i+1}</td>
         <td>${pname(p.playerId)}${p.playerId===currentPlayer?.id?` <span class="badge b-us">You</span>`:''}</td>
-        ${WEEKS.map(w=>{const wd=p.weekly[w.num];if(!wd)return'<td class="tgr">–</td>';
-          return`<td class="${wd.contrib>0?'tg2':'tgr'}" title="${wd.contrib>0?'Counted':'Not counted'}">${wd.pts}${wd.contrib>0&&wd.contrib<1?'*':''}</td>`;
+        ${WEEKS.map(w=>{
+          const wd=p.weekly[w.num];
+          if(!wd)return'<td class="tgr">–</td>';
+          const isPlayoff=!!w.label;
+          return`<td class="${wd.contrib>0?'tg2':'tgr'}" title="${wd.contrib>0?'Counted':'Not counted'}${isPlayoff?' (playoff)':''}">${wd.pts}${wd.contrib>0&&wd.contrib<1?'*':''}</td>`;
         }).join('')}
-        <td class="tg fw">${p.contrib.toFixed(1)}</td>
-        <td class="tgr">${p.total}</td>
+        <td class="tg fw" style="border-left:2px solid var(--border)">${(p.contribRegular||0).toFixed(1)}</td>
+        <td class="${(p.contribPlayoff||0)>0?'tg2':'tgr'}">${(p.contribPlayoff||0).toFixed(1)}</td>
+        <td class="tg">${(p.contrib||0).toFixed(1)}</td>
+        <td class="tgr">${p.total||0}</td>
       </tr>`).join('')}</tbody>
     </table></div>
-    <div class="cap mt8">* = Partial contribution (tie at 4th) · Green = counted toward team · Payouts: 1st $${S.cfg.i1} · 2nd $${S.cfg.i2} · 3rd $${S.cfg.i3}</div>
+    <div class="cap mt8">* = Partial contribution (tie at 4th) · Reg Contrib = Wks 1–7 only (used for prize payout) · PO = Playoff weeks · Payouts: 1st $${S.cfg.i1} · 2nd $${S.cfg.i2} · 3rd $${S.cfg.i3}</div>
   </div>`;
 }
 
@@ -2531,26 +2553,15 @@ function renderStPrize(){
   }).join('');
 
   // Ringer detail — uses ringerTotal from calcAllStats (already prize-week filtered)
-  // Show per-hole breakdown for transparency
   const ringerPayouts=[c.r1||75,c.r2||40,c.r3||15];
   const ringerRanked=[...sorted].filter(p=>p.ringerTotal!==null).sort((a,b)=>a.ringerTotal-b.ringerTotal);
-  const allHoles=getAllHoles();
-  const pars={};allHoles.forEach(h=>pars[h.h]=h.p);
   const ringerDetailRows=ringerRanked.map((p,i)=>{
     const prize=i<ringerPayouts.length?ringerPayouts[i]:0;
-    const holesPlayed=Object.keys(p.ringerBest||{}).length;
-    const holeBreakdown=allHoles.map(h=>{
-      const v=p.ringerBest?.[h.h];
-      if(v==null)return`<span style="color:var(--txt4)">–</span>`;
-      const d=v-pars[h.h];
-      return`<span style="color:${d<0?'var(--g2)':d===0?'var(--txt2)':'var(--txt4)'};" title="Hole ${h.h}">${v}</span>`;
-    }).join(' ');
     return`<tr class="${i<3?'tr-gold':''}">
       <td style="font-weight:700;color:${placeColor(i)}">${i+1}</td>
       <td>${pname(p.playerId)}</td>
-      <td class="fw">${p.ringerTotal} net <span style="color:var(--txt4);font-size:10px;font-weight:400">(${holesPlayed}/18 holes)</span></td>
-      <td style="font-size:10px;color:var(--txt3);line-height:1.4">${holeBreakdown}</td>
-      <td class="${prize>0?'tg fw':''}">${prize>0?'$'+prize:'–'}</td>
+      <td class="fw">${p.ringerTotal}</td>
+      <td class="${prize>0?'tg fw':''}">${prize>0?'$'+prize.toFixed(2):'–'}</td>
     </tr>`;
   }).join('');
 
@@ -2604,10 +2615,10 @@ function renderStPrize(){
         <div style="font-family:'Bebas Neue',sans-serif;font-size:13px;color:var(--g1);letter-spacing:1px;margin-bottom:6px">
           Ringer Board <span class="sub">Wks 1–${PRIZE_WEEKS.length} · $${ringerPool} pool</span>
         </div>
-        <table class="twrap"><thead><tr><th>#</th><th>Player</th><th>Total Net</th><th>Per-Hole Detail (Wks 1–7)</th><th>Prize</th></tr></thead>
+        <table class="twrap"><thead><tr><th>#</th><th>Player</th><th>Total Net</th><th>Prize</th></tr></thead>
           <tbody>${ringerDetailRows}</tbody>
         </table>
-        <div class="cap mt8">1st $${c.r1||75} · 2nd $${c.r2||40} · 3rd $${c.r3||15} · Lower = better · green = under par</div>
+        <div class="cap mt8">1st $${c.r1||75} · 2nd $${c.r2||40} · 3rd $${c.r3||15} · Ties split equally · Lower score = better</div>
       </div>
     </div>
   </div>`;
