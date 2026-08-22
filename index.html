@@ -228,6 +228,43 @@ tbody tr:hover td{background:var(--surface2)}
 .sdet strong{display:block;font-size:13px;font-weight:600;color:var(--txt)}
 .sdet span{font-size:11px;color:var(--txt3)}
 
+/* ── PAIRINGS ── */
+.pr-week{margin-bottom:24px;scroll-margin-top:60px}
+.pr-week-hdr{display:flex;align-items:center;gap:10px;margin-bottom:10px;padding-bottom:8px;border-bottom:2px solid var(--g1)}
+.pr-week-label{font-family:'Bebas Neue',sans-serif;font-size:18px;color:var(--g1);letter-spacing:1.5px}
+.pr-week-sub{font-size:11px;color:var(--txt3)}
+.pr-week-badge{font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;background:var(--g1);color:#fff}
+.pr-week-badge.playoff{background:var(--gold);color:#1a1a1a}
+.pr-groups{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px}
+.pr-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden;transition:box-shadow .15s}
+.pr-card:hover{box-shadow:0 4px 16px rgba(0,0,0,0.15)}
+.pr-card-head{background:var(--g-grad);padding:7px 12px;display:flex;align-items:center;justify-content:space-between}
+.pr-group-label{font-family:'Bebas Neue',sans-serif;font-size:12px;color:rgba(255,255,255,0.65);letter-spacing:1px}
+.pr-team-score{text-align:right}
+.pr-ts-num{font-family:'Bebas Neue',sans-serif;font-size:20px;color:#fff;line-height:1}
+.pr-ts-label{font-size:9px;font-family:'Inter',sans-serif;font-weight:500;color:rgba(255,255,255,0.55);letter-spacing:.5px}
+.pr-players{padding:10px 12px;display:flex;flex-direction:column;gap:10px}
+.pr-player{display:flex;align-items:center;gap:9px}
+.pr-av{width:34px;height:34px;border-radius:50%;background:var(--g1);color:#fff;font-family:'Bebas Neue',sans-serif;font-size:14px;display:flex;align-items:center;justify-content:center;flex-shrink:0;letter-spacing:0}
+.pr-av.me{background:var(--gold);color:#1a1a1a}
+.pr-info{flex:1;min-width:0}
+.pr-name{font-size:12px;font-weight:600;color:var(--txt);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pr-pts{font-family:'Bebas Neue',sans-serif;font-size:22px;line-height:1;color:var(--g1)}
+.pr-pts.no-score{font-size:12px;color:var(--txt4);font-family:'Inter',sans-serif;font-weight:400;line-height:1.8}
+.pr-pts.great{color:var(--gold)}
+.pr-bar-wrap{height:3px;background:rgba(255,255,255,0.08);border-radius:2px;margin-top:3px}
+.pr-bar{height:3px;border-radius:2px;background:var(--g2);transition:width .5s ease}
+.pr-bar.counted{background:var(--g1)}
+.pr-bar.great{background:var(--gold)}
+.pr-contrib-tag{font-size:9px;color:var(--g2);font-weight:600;letter-spacing:.3px;margin-top:1px}
+.pr-solo{padding:10px 12px;font-size:11px;color:var(--txt3);font-style:italic}
+.pr-week-tab{border:1px solid var(--border);background:var(--surface2);color:var(--txt2);font-family:'Inter',sans-serif;font-size:11px;font-weight:600;padding:5px 10px;border-radius:8px;cursor:pointer;white-space:nowrap;transition:all .15s}
+.pr-week-tab:hover{border-color:var(--g2);color:var(--g1)}
+.pr-week-tab.active{background:var(--g1);color:#fff;border-color:var(--g1)}
+.pr-week-tab.playoff{border-color:var(--gold);color:var(--gold)}
+.pr-week-tab.playoff.active{background:var(--gold);color:#1a1a1a;border-color:var(--gold)}
+@media(max-width:480px){.pr-groups{grid-template-columns:1fr 1fr}}
+
 /* ── GB CELLS ── */
 .gb-target{background:var(--red-bg)!important}
 .gb-win{background:var(--gold-bg)!important}
@@ -293,6 +330,7 @@ tbody tr:hover td{background:var(--surface2)}
     <button class="nb" onclick="navTo('entry',this)">Enter Scores</button>
     <button class="nb" onclick="navTo('standings',this)">Standings</button>
     <button class="nb" onclick="navTo('schedule',this)">Results</button>
+    <button class="nb" onclick="navTo('pairings',this)">Pairings</button>
     <button class="nb" id="nav-admin-btn" onclick="navTo('admin',this)" style="display:none">Admin</button>
   </div>
   <!-- Mobile: Enter Scores CTA + hamburger -->
@@ -312,6 +350,7 @@ tbody tr:hover td{background:var(--surface2)}
   <button class="nb" onclick="navTo('dash',null);closeDrawer()">Dashboard</button>
   <button class="nb" onclick="navTo('standings',null);closeDrawer()">Standings</button>
   <button class="nb" onclick="navTo('schedule',null);closeDrawer()">Results</button>
+  <button class="nb" onclick="navTo('pairings',null);closeDrawer()">Pairings</button>
   <button class="nb" id="drawer-admin-btn" onclick="navTo('admin',null);closeDrawer()" style="display:none">Admin</button>
 </div>
 
@@ -571,6 +610,16 @@ tbody tr:hover td{background:var(--surface2)}
     <div id="sched-list"></div>
   </div>
   <div id="week-detail"></div>
+</div>
+
+<!-- ══ PAIRINGS ══ -->
+<div id="page-pairings" class="page">
+  <div class="card">
+    <div class="card-title">Season Pairings</div>
+    <div class="cap" style="margin-bottom:12px">Weekly playing partners with Stableford scores · Green bar shows points contributed to team · Tap a week tab to jump to it</div>
+    <div id="pairings-week-tabs" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px"></div>
+  </div>
+  <div id="pairings-content"></div>
 </div>
 
 <!-- ══ ADMIN ══ -->
@@ -1213,6 +1262,7 @@ function refreshPage(id){
   if(id==='entry')initEntry();
   if(id==='standings')renderStandings();
   if(id==='schedule')renderSchedule();
+  if(id==='pairings')renderPairings();
   if(id==='admin')renderAdmin();
 }
 function refreshAll(){const a=document.querySelector('.page.active');if(a)refreshPage(a.id.replace('page-',''))}
@@ -2624,7 +2674,140 @@ function renderStPrize(){
   </div>`;
 }
 
-// ═══ SCHEDULE / RESULTS ═══
+// ═══ PAIRINGS ═══
+// Pairing data transcribed from 2026_Pairings.xlsx
+// Each entry: array of groups per week, each group is array of first names
+const PAIRINGS_DATA=[
+  {weekNum:1,groups:[['Andre','Travis'],['Jamie','Joe'],['Greg','Matt'],['Brent','Jordan']]},
+  {weekNum:2,groups:[['Brent','Scott'],['Travis','Greg'],['Jordan','Matt'],['Jamie','Andre']]},
+  {weekNum:3,groups:[['Andre','Matt'],['John','Joe'],['Jordan','Scott'],['Jamie']]},
+  {weekNum:4,groups:[['Andre','Joe'],['John','Greg'],['Jamie','Scott'],['Jordan']]},
+  {weekNum:5,groups:[['Andre','Scott'],['Greg','John'],['Travis','Brent'],['Joe','Matt']]},
+  {weekNum:6,groups:[['John','Travis'],['Jamie','Scott'],['Joe','Andre'],['Brent','Jordan']]},
+  {weekNum:7,groups:[['Jamie','Matt'],['John','Brent'],['Scott','Jordan'],['Andre']]},
+  {weekNum:8,groups:[['John','Andre'],['Travis','Greg'],['Jordan','Brent'],['Joe','Scott']]},
+  {weekNum:9,groups:[['Andre','Jordan'],['Travis','John'],['Matt','Scott'],['Greg','Brent']]},
+  {weekNum:10,groups:[['Andre','Brent'],['Jamie','Travis'],['Scott','Greg'],['Jordan','Joe']]}
+];
+
+// Find a player ID by first name (case-insensitive, partial match)
+function findPlayerByFirst(first){
+  const f=first.trim().toLowerCase();
+  return S.players.find(p=>p.first.toLowerCase()===f||p.first.toLowerCase().startsWith(f));
+}
+
+function renderPairings(){
+  const stats=calcAllStats();
+  const tabsEl=document.getElementById('pairings-week-tabs');
+  const contentEl=document.getElementById('pairings-content');
+  if(!tabsEl||!contentEl)return;
+
+  // Week tabs
+  tabsEl.innerHTML=PAIRINGS_DATA.map(pd=>{
+    const w=WEEKS.find(wk=>wk.num===pd.weekNum);
+    const isPlayoff=!!w?.label;
+    return`<button class="pr-week-tab ${isPlayoff?'playoff':''}" onclick="scrollToPairingWeek(${pd.weekNum},this)">
+      ${isPlayoff?('P'+(pd.weekNum-7)):('Wk'+pd.weekNum)}
+    </button>`;
+  }).join('');
+
+  // Build week sections
+  contentEl.innerHTML=PAIRINGS_DATA.map(pd=>{
+    const w=WEEKS.find(wk=>wk.num===pd.weekNum);
+    const isPlayoff=!!w?.label;
+    const ws=wkS(pd.weekNum);
+    const hasScores=ws.length>0;
+
+    // Build the group cards
+    const groupCards=pd.groups.map((names,gi)=>{
+      // Resolve players
+      const players=names.map(n=>findPlayerByFirst(n)).filter(Boolean);
+      const playerNames=names; // keep original names as fallback display
+
+      // Get scores for each player this week
+      const playerData=names.map((name,ni)=>{
+        const p=findPlayerByFirst(name);
+        if(!p)return{name,pid:null,sf:null,gross:null,net:null,contributed:0};
+        const sc=ws.find(s=>s.playerId===p.id);
+        if(!sc)return{name,pid:p.id,sf:null,gross:null,net:null,contributed:0};
+        const sf=rndSF(sc);
+        const gross=rndGross(sc);
+        const net=rndNet(sc);
+        // Check if this player contributed (was in top 4) this week
+        const wkPts=ws.map(s=>({playerId:s.playerId,sf:rndSF(s)}));
+        const top4res=top4(wkPts);
+        const myEntry=top4res.find(x=>x.playerId===p.id);
+        const contributed=myEntry?.contributed||0;
+        return{name,pid:p.id,sf,gross,net,contributed};
+      });
+
+      // Pairing team score = sum of their individual SF (for display only)
+      const teamSF=playerData.reduce((s,p)=>s+(p.sf||0),0);
+      // Max SF for bar scaling (18 is a great 9-hole round)
+      const BAR_MAX=22;
+
+      const playerRows=playerData.map(pd2=>{
+        const isMe=pd2.pid&&pd2.pid===currentPlayer?.id;
+        const sfClass=pd2.sf===null?'no-score':pd2.sf>=18?'great':'';
+        const barPct=pd2.sf?Math.min(100,Math.round((pd2.sf/BAR_MAX)*100)):0;
+        const barClass=pd2.sf>=18?'great':pd2.contributed>0?'counted':'';
+        const initials=pd2.name.slice(0,2).toUpperCase();
+        return`<div class="pr-player">
+          <div class="pr-av ${isMe?'me':''}">${initials}</div>
+          <div class="pr-info">
+            <div class="pr-name">${pd2.name}${isMe?' ★':''}</div>
+            ${pd2.sf!==null?`
+              <div class="pr-pts ${sfClass}">${pd2.sf}<span style="font-size:10px;font-family:Inter;font-weight:500;color:var(--txt3);margin-left:3px">pts</span></div>
+              <div class="pr-bar-wrap"><div class="pr-bar ${barClass}" style="width:${barPct}%"></div></div>
+              ${pd2.contributed>0?`<div class="pr-contrib-tag">✓ Counted${pd2.contributed<1?' (partial)':''}</div>`:''}
+            `:`<div class="pr-pts no-score">${hasScores?'Did not play':'–'}</div>`}
+          </div>
+          ${pd2.gross!==null?`<div style="text-align:right;flex-shrink:0">
+            <div style="font-size:10px;color:var(--txt3);line-height:1.4">G ${pd2.gross}</div>
+            <div style="font-size:10px;color:var(--g2);line-height:1.4">N ${pd2.net}</div>
+          </div>`:''}
+        </div>`;
+      }).join('');
+
+      return`<div class="pr-card">
+        <div class="pr-card-head">
+          <span class="pr-group-label">Group ${gi+1}</span>
+          ${hasScores&&teamSF>0?`<div class="pr-team-score">
+            <div class="pr-ts-num">${teamSF}</div>
+            <div class="pr-ts-label">combined pts</div>
+          </div>`:'<span style="font-size:10px;color:rgba(255,255,255,0.45)">No scores</span>'}
+        </div>
+        <div class="pr-players">${playerRows}</div>
+      </div>`;
+    }).join('');
+
+    return`<div class="pr-week" id="pr-week-${pd.weekNum}">
+      <div class="pr-week-hdr">
+        <div class="pr-week-label">${w?wkLabel(w):'Week '+pd.weekNum}</div>
+        <div class="pr-week-sub">vs ${w?.opp||'TBD'}</div>
+        ${isPlayoff?`<span class="pr-week-badge playoff">Playoff</span>`:`<span class="pr-week-badge">Week ${pd.weekNum}</span>`}
+        ${hasScores?`<span style="font-size:10px;color:var(--g2);font-weight:600;margin-left:auto">${ws.length} score${ws.length!==1?'s':''} recorded</span>`:''}
+      </div>
+      <div class="pr-groups">${groupCards}</div>
+      <div style="font-size:9px;color:var(--txt4);margin-top:8px;padding-left:2px">
+        ★ = You · ✓ Counted = contributed to team Stableford score · Bar length = SF points (gold = 18+)
+      </div>
+    </div>`;
+  }).join('');
+
+  // Activate first tab
+  const firstTab=tabsEl.querySelector('.pr-week-tab');
+  if(firstTab)firstTab.classList.add('active');
+}
+
+function scrollToPairingWeek(weekNum, btn){
+  // Update active tab
+  document.querySelectorAll('.pr-week-tab').forEach(t=>t.classList.remove('active'));
+  if(btn)btn.classList.add('active');
+  // Scroll to week section
+  const el=document.getElementById('pr-week-'+weekNum);
+  if(el)el.scrollIntoView({behavior:'smooth',block:'start'});
+}
 function renderSchedule(){
   const cur=getCurWeek();
   document.getElementById('sched-list').innerHTML=WEEKS.map(w=>{
