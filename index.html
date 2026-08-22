@@ -1109,9 +1109,8 @@ function calcAllStats(){
     }
   });
   // total prize — includes stableford and ringer payouts
-  // Stableford: award top 3 by contrib in prize weeks only
+  // Stableford: award top 3 by contrib in prize weeks ONLY (recalc separate from main loop)
   const sfPayouts=[c.i1||125, c.i2||75, c.i3||50];
-  // Calc contrib restricted to prize weeks
   const sfPrizeContrib={};
   S.players.forEach(p=>{sfPrizeContrib[p.id]=0;});
   for(const w of PRIZE_WEEKS){
@@ -1122,9 +1121,12 @@ function calcAllStats(){
         sfPrizeContrib[p.playerId]+=p.contributed*p.sf;
     });
   }
-  // Rank by prize-week contrib
-  const sfPrizeRanked=Object.entries(sfPrizeContrib)
-    .sort((a,b)=>b[1]-a[1]);
+  // Store prize-week contrib on stats object so renderStPrize uses the right number
+  Object.entries(sfPrizeContrib).forEach(([pid,val])=>{
+    if(m[pid])m[pid].sfPrizeContrib=val;
+  });
+  // Rank by prize-week contrib for payout
+  const sfPrizeRanked=Object.entries(sfPrizeContrib).sort((a,b)=>b[1]-a[1]);
   sfPrizeRanked.forEach(([pid],i)=>{
     if(i<sfPayouts.length&&m[pid])m[pid].sfWin=sfPayouts[i];
   });
@@ -2498,28 +2500,44 @@ function renderStPrize(){
     </tr>`;
   }).join('');
 
-  // Stableford detail — top 3 contrib (prize weeks only)
+  // Stableford detail — sort by prize-week contrib (sfPrizeContrib), NOT all-weeks contrib
   const sfPrizePayouts=[c.i1||125,c.i2||75,c.i3||50];
-  const sfRanked=[...sorted].filter(p=>p.contrib>0).sort((a,b)=>b.contrib-a.contrib);
-  const sfDetailRows=sfRanked.slice(0,Math.max(3,sfRanked.length)).map((p,i)=>{
+  const sfRanked=[...sorted]
+    .filter(p=>(p.sfPrizeContrib||0)>0||(p.contrib||0)>0)
+    .sort((a,b)=>(b.sfPrizeContrib||0)-(a.sfPrizeContrib||0));
+  const sfDetailRows=sfRanked.map((p,i)=>{
     const prize=i<sfPrizePayouts.length?sfPrizePayouts[i]:0;
+    const prizeWeekContrib=(p.sfPrizeContrib||0).toFixed(1);
+    const allWeekContrib=(p.contrib||0).toFixed(1);
+    const diff=parseFloat(allWeekContrib)-parseFloat(prizeWeekContrib);
     return`<tr class="${i<3?'tr-gold':''}">
       <td style="font-weight:700;color:${placeColor(i)}">${i+1}</td>
       <td>${pname(p.playerId)}</td>
-      <td class="fw">${p.contrib.toFixed(1)} pts</td>
+      <td class="fw">${prizeWeekContrib} pts <span style="color:var(--txt4);font-size:10px;font-weight:400">${diff>0?'(+'+diff.toFixed(1)+' wks 8-10 excl.)':''}</span></td>
       <td class="${prize>0?'tg fw':''}">${prize>0?'$'+prize:'–'}</td>
     </tr>`;
   }).join('');
 
-  // Ringer detail — top 3 by ringerTotal (lower is better)
+  // Ringer detail — uses ringerTotal from calcAllStats (already prize-week filtered)
+  // Show per-hole breakdown for transparency
   const ringerPayouts=[c.r1||75,c.r2||40,c.r3||15];
   const ringerRanked=[...sorted].filter(p=>p.ringerTotal!==null).sort((a,b)=>a.ringerTotal-b.ringerTotal);
-  const ringerDetailRows=ringerRanked.slice(0,Math.max(3,ringerRanked.length)).map((p,i)=>{
+  const allHoles=getAllHoles();
+  const pars={};allHoles.forEach(h=>pars[h.h]=h.p);
+  const ringerDetailRows=ringerRanked.map((p,i)=>{
     const prize=i<ringerPayouts.length?ringerPayouts[i]:0;
+    const holesPlayed=Object.keys(p.ringerBest||{}).length;
+    const holeBreakdown=allHoles.map(h=>{
+      const v=p.ringerBest?.[h.h];
+      if(v==null)return`<span style="color:var(--txt4)">–</span>`;
+      const d=v-pars[h.h];
+      return`<span style="color:${d<0?'var(--g2)':d===0?'var(--txt2)':'var(--txt4)'};" title="Hole ${h.h}">${v}</span>`;
+    }).join(' ');
     return`<tr class="${i<3?'tr-gold':''}">
       <td style="font-weight:700;color:${placeColor(i)}">${i+1}</td>
       <td>${pname(p.playerId)}</td>
-      <td class="fw">${p.ringerTotal} net</td>
+      <td class="fw">${p.ringerTotal} net <span style="color:var(--txt4);font-size:10px;font-weight:400">(${holesPlayed}/18 holes)</span></td>
+      <td style="font-size:10px;color:var(--txt3);line-height:1.4">${holeBreakdown}</td>
       <td class="${prize>0?'tg fw':''}">${prize>0?'$'+prize:'–'}</td>
     </tr>`;
   }).join('');
@@ -2563,10 +2581,10 @@ function renderStPrize(){
         <div style="font-family:'Bebas Neue',sans-serif;font-size:13px;color:var(--g1);letter-spacing:1px;margin-bottom:6px">
           Stableford Points Contributed <span class="sub">Wks 1–${PRIZE_WEEKS.length} · $${sfPool} pool</span>
         </div>
-        <table class="twrap"><thead><tr><th>#</th><th>Player</th><th>Contrib</th><th>Prize</th></tr></thead>
+        <table class="twrap"><thead><tr><th>#</th><th>Player</th><th>Contrib (Wks 1–7)</th><th>Prize</th></tr></thead>
           <tbody>${sfDetailRows}</tbody>
         </table>
-        <div class="cap mt8">1st $${c.i1||125} · 2nd $${c.i2||75} · 3rd $${c.i3||50}</div>
+        <div class="cap mt8">1st $${c.i1||125} · 2nd $${c.i2||75} · 3rd $${c.i3||50} · Weeks 1–7 only</div>
       </div>
 
       <!-- Ringer payout detail -->
@@ -2574,10 +2592,10 @@ function renderStPrize(){
         <div style="font-family:'Bebas Neue',sans-serif;font-size:13px;color:var(--g1);letter-spacing:1px;margin-bottom:6px">
           Ringer Board <span class="sub">Wks 1–${PRIZE_WEEKS.length} · $${ringerPool} pool</span>
         </div>
-        <table class="twrap"><thead><tr><th>#</th><th>Player</th><th>Total Net</th><th>Prize</th></tr></thead>
+        <table class="twrap"><thead><tr><th>#</th><th>Player</th><th>Total Net</th><th>Per-Hole Detail (Wks 1–7)</th><th>Prize</th></tr></thead>
           <tbody>${ringerDetailRows}</tbody>
         </table>
-        <div class="cap mt8">1st $${c.r1||75} · 2nd $${c.r2||40} · 3rd $${c.r3||15} · Lower = better</div>
+        <div class="cap mt8">1st $${c.r1||75} · 2nd $${c.r2||40} · 3rd $${c.r3||15} · Lower = better · green = under par</div>
       </div>
     </div>
   </div>`;
