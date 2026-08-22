@@ -784,14 +784,17 @@ const WEEKS=[
   {num:3,date:'6/9',opp:'Breakfast Balls',cap:'Devo'},
   {num:4,date:'6/16',opp:'Full Monty',cap:'Rasmussen'},
   {num:5,date:'6/23',opp:'Grinders',cap:'Claridge'},
-  {num:6,date:'6/30',opp:'In it To Win it',cap:'Tinucci'},
-  {num:7,date:'7/7',opp:'Wagyu Hand Roll',cap:'Dunleavy'},
-  {num:8,date:'7/14',opp:'TBD',cap:'TBD'},
-  {num:9,date:'7/21',opp:'TBD',cap:'TBD'},
-  {num:10,date:'7/28',opp:'TBD',cap:'TBD'}
+  {num:6,date:'7/7',opp:'In it To Win it',cap:'Tinucci'},
+  {num:7,date:'7/14',opp:'Wagyu Hand Roll',cap:'Dunleavy'},
+  {num:8,date:'7/21',opp:'Dew Busters',cap:'TBD',label:'Playoff Week 1'},
+  {num:9,date:'7/28',opp:'Sultans of Swing',cap:'TBD',label:'Playoff Week 2'},
+  {num:10,date:'8/3',opp:'Team Uffda',cap:'TBD',label:'Playoff Week 3'}
 ];
 // Prize money (skins, GB, Low Gross, Low Net) only runs for weeks 1-7
 const PRIZE_WEEKS=WEEKS.filter(w=>w.num<=7);
+// Display label for a week — shows playoff label when set
+function wkLabel(w){return w.label?`${w.label} (${w.date})`:(`${wkLabel(w)}`)}
+function wkLabelVs(w){return `${wkLabel(w)} vs ${w.opp}`}
 const SC={
   front:[{h:1,p:5,hcp:11,y:513},{h:2,p:4,hcp:1,y:444},{h:3,p:4,hcp:5,y:404},
     {h:4,p:4,hcp:15,y:345},{h:5,p:3,hcp:9,y:194},{h:6,p:4,hcp:7,y:389},
@@ -1287,7 +1290,7 @@ function getActiveWeek(){
 }
 
 function initEntry(){
-  pSel('ew',WEEKS.map(w=>({v:w.num,l:`Week ${w.num} (${w.date}) vs ${w.opp}${S.lockedWeeks.includes(w.num)?' 🔒 LOCKED':''}`})));
+  pSel('ew',WEEKS.map(w=>({v:w.num,l:`${wkLabelVs(w)}${S.lockedWeeks.includes(w.num)?' 🔒 LOCKED':''}`})));
   // Set default to active week
   const ewEl=document.getElementById('ew');
   if(ewEl)ewEl.value=getActiveWeek();
@@ -2170,7 +2173,7 @@ function renderStTeam(){
     return`<div class="card" style="margin-bottom:12px">
       <div class="card-title">Pod ${String.fromCharCode(64+pod)}</div>
       <div class="twrap"><table>
-        <thead><tr><th>#</th><th>Team</th>${WEEKS.map(w=>`<th>Wk${w.num}</th>`).join('')}<th>Total</th><th>Δ4th</th></tr></thead>
+        <thead><tr><th>#</th><th>Team</th>${WEEKS.map(w=>`<th>${w.label?"P"+(w.num-7):"Wk"+w.num}</th>`).join('')}<th>Total</th><th>Δ4th</th></tr></thead>
         <tbody>${teams.map((t,i)=>`<tr class="${i<4?'tr-playoff':''} ${t.ours?'tr-us':''}">
           <td style="color:${i<4?'var(--g2)':'var(--txt3)'};font-weight:700">${i+1}</td>
           <td>${t.ours?`<strong>${t.name}</strong> <span class="badge b-us">Us</span>`:t.name}</td>
@@ -2203,7 +2206,7 @@ function renderStStableford(sortKey){
     <div class="twrap"><table>
       <thead><tr>
         <th>#</th><th>Player</th>
-        ${WEEKS.map(w=>`<th onclick="renderStStableford('${w.num}')" style="${thStyle(''+w.num)}">Wk${w.num}</th>`).join('')}
+        ${WEEKS.map(w=>`<th onclick="renderStStableford('${w.num}')" style="${thStyle(''+w.num)}">${w.label?"P"+(w.num-7):"Wk"+w.num}</th>`).join('')}
         <th onclick="renderStStableford('contrib')" style="${thStyle('contrib')}">Contrib ▼</th>
         <th onclick="renderStStableford('total')" style="${thStyle('total')}">Total</th>
       </tr></thead>
@@ -2227,7 +2230,7 @@ function renderStSkins(){
     <div class="card-title">Net Skins — Season Tracker</div>
     <div class="alert">$${c.skinsWeekly}/week · split among skins won that week · $${c.skinsWeekly*PRIZE_WEEKS.length} total season allocation (weeks 1–${PRIZE_WEEKS.length})</div>
     <div class="twrap"><table>
-      <thead><tr><th>#</th><th>Player</th>${WEEKS.map(w=>`<th>Wk${w.num}</th>`).join('')}<th>Skins</th><th>Won</th></tr></thead>
+      <thead><tr><th>#</th><th>Player</th>${WEEKS.map(w=>`<th>${w.label?"P"+(w.num-7):"Wk"+w.num}</th>`).join('')}<th>Skins</th><th>Won</th></tr></thead>
       <tbody>${sorted.map((p,i)=>{
         const wkSkins={};for(const w of WEEKS){const sk=skinsByWeek(w.num);sk.filter(s=>s.playerId===p.playerId).forEach(()=>{wkSkins[w.num]=(wkSkins[w.num]||0)+1})}
         return`<tr class="${p.skins>0?'tr-gold':''} ${p.playerId===currentPlayer?.id?'tr-us':''}">
@@ -2300,7 +2303,7 @@ function renderStLGN(){
       <div class="alert">$${prize}/week · ties split equally · * = winner that week · sorted by season avg (low to high)</div>
       <div class="twrap"><table>
         <thead><tr>
-          <th>#</th><th>Player</th>${WEEKS.map(w=>`<th>Wk${w.num}</th>`).join('')}
+          <th>#</th><th>Player</th>${WEEKS.map(w=>`<th>${w.label?"P"+(w.num-7):"Wk"+w.num}</th>`).join('')}
           <th>Avg</th><th>Wins</th><th>Won</th>
         </tr></thead>
         <tbody>${rowsHtml}</tbody>
@@ -2371,7 +2374,7 @@ function renderStGB(){
     <div class="card-title">GB</div>
     <div class="alert">$${gbW}/wk · Target wins all if unbeaten · Beaters split $${gbW} · $${gbW*PRIZE_WEEKS.length} total (weeks 1–${PRIZE_WEEKS.length}) · Sorted A–Z (you always first)</div>
     <div class="twrap"><table>
-      <thead><tr><th>Player</th>${WEEKS.map(w=>`<th>Wk${w.num}<br><span style="font-size:9px;font-weight:400;font-family:Inter">${w.date}</span></th>`).join('')}<th>Total</th></tr></thead>
+      <thead><tr><th>Player</th>${WEEKS.map(w=>`<th>${w.label?'P'+(w.num-7):'Wk'+w.num}<br><span style="font-size:9px;font-weight:400;font-family:Inter">${w.date}</span></th>`).join('')}<th>Total</th></tr></thead>
       <tbody>${gbPlayers.map(p=>{
         const cells=WEEKS.map(w=>{
           const wr=weekRes[w.num];const isTgt=wr?.tid===p.id;const res=wr?.results?.[p.id];
@@ -2424,7 +2427,7 @@ function renderStBYM(){
     <div class="twrap"><table>
       <thead><tr>
         <th>#</th><th>Player</th>
-        ${WEEKS.map(w=>`<th>Wk${w.num}</th>`).join('')}
+        ${WEEKS.map(w=>`<th>${w.label?"P"+(w.num-7):"Wk"+w.num}</th>`).join('')}
         <th>YTD ✓</th>
       </tr></thead>
       <tbody>${rows}</tbody>
@@ -2465,9 +2468,10 @@ function renderSchedule(){
       <div style="display:flex;align-items:center;gap:10px;width:100%">
         <div class="sw">W${w.num}</div>
         <div class="sdet" style="flex:1">
-          <strong>${w.date} — vs ${w.opp}</strong>
+          <strong>${w.label?w.label+' — ':''} ${w.date} — vs ${w.opp}</strong>
           <span>Cap: ${w.cap} · ${pl} player${pl!==1?'s':''} scored${tgt?' · Target: '+pname(tgt):''}</span>
         </div>
+        ${w.label?'<span class="badge b-gold" style="background:var(--gold);color:#fff;font-size:10px">Playoff</span>':''}
         ${isCur?'<span class="badge b-green">This Week</span>':''}
         ${isPast&&hasScores?'<span class="badge b-gray">Done</span>':''}
         ${hasScores?`<button class="btn-out btn btn-sm" onclick="toggleWeekDetail(${w.num})">Results ▾</button>`:''}
@@ -2540,7 +2544,7 @@ function buildWeekDetail(weekNum){
 
 // ═══ REPORT ═══
 function initReport(){
-  pSel('rw',WEEKS.map(w=>({v:w.num,l:`Week ${w.num} (${w.date}) vs ${w.opp}`})));
+  pSel('rw',WEEKS.map(w=>({v:w.num,l:`${wkLabelVs(w)}`})));
   // Default to active week
   const ewEl=document.getElementById('rw');
   if(ewEl)ewEl.value=getActiveWeek();
@@ -2655,7 +2659,7 @@ function buildReportHTML(week, forPrint){
     <div class="r-section">
       <div class="r-section-title">3. Individual Stableford — Season Standings</div>
       <table class="r-table">
-        <thead><tr><th>#</th><th>Player</th>${WEEKS.map(w=>`<th>Wk${w.num}</th>`).join('')}<th>Contrib</th><th>Total</th></tr></thead>
+        <thead><tr><th>#</th><th>Player</th>${WEEKS.map(w=>`<th>${w.label?"P"+(w.num-7):"Wk"+w.num}</th>`).join('')}<th>Contrib</th><th>Total</th></tr></thead>
         <tbody>${sfSorted.map((p,i)=>`<tr class="${i<3?'r-top3':''}">
           <td>${i+1}</td><td>${pname(p.playerId)}</td>
           ${WEEKS.map(w=>`<td>${p.weekly[w.num]?.pts??'–'}</td>`).join('')}
@@ -2702,7 +2706,7 @@ function buildReportHTML(week, forPrint){
       <div class="r-section-title">5. Low Gross</div>
       <div class="r-subtitle">This week: ${minG!==null?ga.map(x=>pname(x.pid)+' '+x.v+(x.v===minG&&lgWinners.length>1?' (tie)':'')).slice(0,5).join(' · '):'No scores'} · Prize: $${lgPrize.toFixed(2)} each</div>
       <table class="r-table">
-        <thead><tr><th>#</th><th>Player</th>${WEEKS.map(w=>`<th>Wk${w.num}</th>`).join('')}<th>Avg</th><th>Wins</th><th>Won</th></tr></thead>
+        <thead><tr><th>#</th><th>Player</th>${WEEKS.map(w=>`<th>${w.label?"P"+(w.num-7):"Wk"+w.num}</th>`).join('')}<th>Avg</th><th>Wins</th><th>Won</th></tr></thead>
         <tbody>${lgPlayerData.map((p,i)=>{
           const weekCells=WEEKS.map(w=>{
             const sc=wkS(w.num).find(s=>s.playerId===p.pid);
@@ -2742,7 +2746,7 @@ function buildReportHTML(week, forPrint){
       <div class="r-section-title">6. Low Net</div>
       <div class="r-subtitle">This week: ${minN!==null?na.map(x=>pname(x.pid)+' '+x.v+(x.v===minN&&lnWinners.length>1?' (tie)':'')).slice(0,5).join(' · '):'No scores'} · Prize: $${lnPrize.toFixed(2)} each</div>
       <table class="r-table">
-        <thead><tr><th>#</th><th>Player</th>${WEEKS.map(w=>`<th>Wk${w.num}</th>`).join('')}<th>Avg</th><th>Wins</th><th>Won</th></tr></thead>
+        <thead><tr><th>#</th><th>Player</th>${WEEKS.map(w=>`<th>${w.label?"P"+(w.num-7):"Wk"+w.num}</th>`).join('')}<th>Avg</th><th>Wins</th><th>Won</th></tr></thead>
         <tbody>${lnPlayerData.map((p,i)=>{
           const weekCells=WEEKS.map(w=>{
             const sc=wkS(w.num).find(s=>s.playerId===p.pid);
@@ -2833,7 +2837,7 @@ function buildReportHTML(week, forPrint){
       <div class="r-section-title">9. Beat Your Meat</div>
       <div class="r-subtitle">Beat ${BYM_THRESHOLD}+ Stableford points in a round · This week: ${thisWeekBeat.length?thisWeekBeat.map(p=>pname(p.pid)+' ('+p.weeks.find(w=>w.week===week)?.sf+' pts)').join(', '):'No one beat the target'}</div>
       <table class="r-table">
-        <thead><tr><th>#</th><th>Player</th>${WEEKS.map(w=>`<th>Wk${w.num}</th>`).join('')}<th>YTD ✓</th></tr></thead>
+        <thead><tr><th>#</th><th>Player</th>${WEEKS.map(w=>`<th>${w.label?"P"+(w.num-7):"Wk"+w.num}</th>`).join('')}<th>YTD ✓</th></tr></thead>
         <tbody>${bymPlayers.map((p,i)=>{
           const weekCells=p.weeks.map(w=>{
             if(!w.played)return'<td style="color:#bbb">–</td>';
@@ -2970,7 +2974,7 @@ function genReport(){generatePDFReport()}
 // ═══ ADMIN ═══
 function renderAdmin(){
   renderRoster();
-  pSel('swf',[{v:'',l:'All Weeks'},...WEEKS.map(w=>({v:w.num,l:`Week ${w.num} (${w.date})`}))]);
+  pSel('swf',[{v:'',l:'All Weeks'},...WEEKS.map(w=>({v:w.num,l:`${wkLabel(w)}`}))]);
   pSel('spf',[{v:'',l:'All Players'},...S.players.map(p=>({v:p.id,l:`${p.first} ${p.last}`}))]);
   loadScoreAdmin();renderGBAdmin();renderPoolAdmin();renderLeagueAdmin();renderWeeklyScoreGrid();
   initMassEntry();renderLockWeeks();
@@ -2985,7 +2989,7 @@ function renderLockWeeks(){
     const wkScores=wkS(w.num).length;
     return`<div style="background:var(--surface);border:1px solid ${isLocked?'var(--g2)':'var(--border)'};border-radius:8px;padding:10px 14px;display:flex;align-items:center;gap:10px">
       <div style="flex:1">
-        <div style="font-weight:600;font-size:13px">Week ${w.num} — ${w.date} vs ${w.opp}</div>
+        <div style="font-weight:600;font-size:13px">${wkLabel(w)} vs ${w.opp}</div>
         <div style="font-size:11px;color:var(--txt3)">${wkScores} score${wkScores!==1?'s':''} recorded${isLocked?' · <strong style="color:var(--g2)">🔒 Locked</strong>':''}</div>
       </div>
       ${isLocked
@@ -3009,7 +3013,7 @@ async function toggleWeekLock(weekNum, lock){
   renderLockWeeks();
   // Refresh entry week dropdown if visible
   const ewEl=document.getElementById('ew');
-  if(ewEl)pSel('ew',WEEKS.map(w=>({v:w.num,l:`Week ${w.num} (${w.date}) vs ${w.opp}${S.lockedWeeks.includes(w.num)?' 🔒 LOCKED':''}`})));
+  if(ewEl)pSel('ew',WEEKS.map(w=>({v:w.num,l:`${wkLabelVs(w)}${S.lockedWeeks.includes(w.num)?' 🔒 LOCKED':''}`})));
 }
 function renderAdminTab(name){
   if(name==='players')renderRoster();
@@ -3020,7 +3024,7 @@ function renderAdminTab(name){
   if(name==='league'){renderLeagueAdmin();renderWeeklyScoreGrid();}
   if(name==='locks')renderLockWeeks();
   if(name==='report-admin'){
-    pSel('rw',WEEKS.map(w=>({v:w.num,l:`Week ${w.num} (${w.date}) vs ${w.opp}`})));
+    pSel('rw',WEEKS.map(w=>({v:w.num,l:`${wkLabelVs(w)}`})));
     document.getElementById('report-out').innerHTML='';
   }
 }
@@ -3090,14 +3094,14 @@ function loadScoreAdmin(){
 async function delScore(id){if(!confirm('Delete score?'))return;S.scores=S.scores.filter(s=>s.id!==id);await sv('scores');loadScoreAdmin()}
 
 function renderGBAdmin(){
-  pSel('gbw',WEEKS.map(w=>({v:w.num,l:`Week ${w.num} (${w.date}) vs ${w.opp}`})));
+  pSel('gbw',WEEKS.map(w=>({v:w.num,l:`${wkLabelVs(w)}`})));
   pSel('gbp',[{v:'',l:'Select target…'},...S.players.map(p=>({v:p.id,l:`${p.first} ${p.last}`}))]);
   const el=document.getElementById('gb-targets-admin');if(!el)return;
   const set=WEEKS.filter(w=>S.gbTargets[w.num]);
   el.innerHTML=set.length
     ?set.map(w=>`<div class="pcard" style="margin-bottom:6px">
         <div class="pav" style="background:var(--red-bg);color:var(--red);font-size:12px;border:1px solid rgba(181,48,37,0.2)">W${w.num}</div>
-        <div class="pinfo"><strong>Week ${w.num} — ${w.date}</strong><span>Target: ${pname(S.gbTargets[w.num])}</span></div>
+        <div class="pinfo"><strong>${wkLabel(w)}</strong><span>Target: ${pname(S.gbTargets[w.num])}</span></div>
         <button class="btn-danger btn btn-sm" onclick="clearGBT(${w.num})">Clear</button></div>`).join('')
     :'<div class="alert" style="margin-bottom:0">No targets set yet.</div>';
 }
@@ -3215,7 +3219,7 @@ async function resetAll(){
 
 // ── MASS SCORE ENTRY (Admin) ──
 function initMassEntry(){
-  pSel('me-week',WEEKS.map(w=>({v:w.num,l:`Week ${w.num} (${w.date}) vs ${w.opp}`})));
+  pSel('me-week',WEEKS.map(w=>({v:w.num,l:`${wkLabelVs(w)}`})));
 }
 function renderMassEntry(){
   const week=parseInt(document.getElementById('me-week')?.value)||1;
