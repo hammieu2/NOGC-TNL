@@ -263,15 +263,15 @@ tbody tr:hover td{background:var(--surface2)}
 .pr-week-tab.active{background:var(--g1);color:#fff;border-color:var(--g1)}
 .pr-week-tab.playoff{border-color:var(--gold);color:var(--gold)}
 .pr-week-tab.playoff.active{background:var(--gold);color:#1a1a1a;border-color:var(--gold)}
-.pr-pts.sf-green{color:#4ade80}
-.pr-pts.sf-blue{color:#60a5fa}
-.pr-pts.sf-red{color:#f87171}
-.pr-av.sf-green{background:#166534;color:#4ade80}
-.pr-av.sf-blue{background:#1e3a5f;color:#60a5fa}
-.pr-av.sf-red{background:#7f1d1d;color:#f87171}
-.pr-bar.sf-green{background:#4ade80}
-.pr-bar.sf-blue{background:#60a5fa}
-.pr-bar.sf-red{background:#f87171}
+.pr-pts.sf-green{color:#22c55e}
+.pr-pts.sf-blue{color:#3b82f6}
+.pr-pts.sf-red{color:#ef4444}
+.pr-av.sf-green{background:#14532d;color:#22c55e}
+.pr-av.sf-blue{background:#1e3a8a;color:#3b82f6}
+.pr-av.sf-red{background:#7f1d1d;color:#ef4444}
+.pr-bar.sf-green{background:#22c55e}
+.pr-bar.sf-blue{background:#3b82f6}
+.pr-bar.sf-red{background:#ef4444}
 @media(max-width:480px){.pr-groups{grid-template-columns:1fr 1fr}}
 
 /* ── GB CELLS ── */
@@ -2756,8 +2756,8 @@ function renderPairings(){
     // Color tier helper
     function sfTier(sf){
       if(sf===null)return'';
-      if(sf>=19)return'sf-green';
-      if(sf>=16)return'sf-blue';
+      if(sf>=18)return'sf-green';
+      if(sf>=15)return'sf-blue';
       return'sf-red';
     }
 
@@ -2769,14 +2769,16 @@ function renderPairings(){
         const tier=sfTier(pd2.sf);
         const barPct=pd2.sf?Math.min(100,Math.round((pd2.sf/BAR_MAX)*100)):0;
         const initials=pd2.name.slice(0,2).toUpperCase();
+        // ★ on avatar when points counted toward team; overrides tier bg only when not "me"
+        const avExtra=pd2.contributed>0&&!isMe?' style="box-shadow:0 0 0 2px var(--gold)"':'';
+        const avLabel=pd2.contributed>0?'★':initials;
         return`<div class="pr-player">
-          <div class="pr-av ${isMe?'me':tier}">${initials}</div>
+          <div class="pr-av ${isMe?'me':tier}"${avExtra}>${avLabel}</div>
           <div class="pr-info">
             <div class="pr-name">${pd2.name}${isMe?' ★':''}</div>
             ${pd2.sf!==null?`
               <div class="pr-pts ${tier}">${pd2.sf}<span style="font-size:10px;font-family:Inter;font-weight:500;color:var(--txt3);margin-left:3px">pts</span></div>
               <div class="pr-bar-wrap"><div class="pr-bar ${tier}" style="width:${barPct}%"></div></div>
-              ${pd2.contributed>0?`<div class="pr-contrib-tag">✓ Counted${pd2.contributed<1?' (partial)':''}</div>`:''}
             `:`<div class="pr-pts no-score">${hasScores?'Did not play':'–'}</div>`}
           </div>
           ${pd2.gross!==null?`<div style="text-align:right;flex-shrink:0">
@@ -2810,10 +2812,10 @@ function renderPairings(){
       </div>
       <div class="pr-groups">${groupCards}</div>
       <div style="display:flex;gap:12px;flex-wrap:wrap;font-size:9px;color:var(--txt4);margin-top:8px;padding-left:2px;align-items:center">
-        <span style="display:flex;align-items:center;gap:3px"><span style="width:8px;height:8px;border-radius:50%;background:#4ade80;display:inline-block"></span>19+ pts</span>
-        <span style="display:flex;align-items:center;gap:3px"><span style="width:8px;height:8px;border-radius:50%;background:#60a5fa;display:inline-block"></span>16–18 pts</span>
-        <span style="display:flex;align-items:center;gap:3px"><span style="width:8px;height:8px;border-radius:50%;background:#f87171;display:inline-block"></span>&lt;16 pts</span>
-        <span>· ★ = You · ✓ = counted toward team · Cards sorted best → worst</span>
+        <span style="display:flex;align-items:center;gap:3px"><span style="width:8px;height:8px;border-radius:50%;background:#22c55e;display:inline-block"></span>18+ pts</span>
+        <span style="display:flex;align-items:center;gap:3px"><span style="width:8px;height:8px;border-radius:50%;background:#3b82f6;display:inline-block"></span>15–17 pts</span>
+        <span style="display:flex;align-items:center;gap:3px"><span style="width:8px;height:8px;border-radius:50%;background:#ef4444;display:inline-block"></span>&lt;15 pts</span>
+        <span>· ★ on avatar = counted toward team · Cards sorted best → worst</span>
       </div>
     </div>`;
   }).join('');
