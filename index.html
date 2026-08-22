@@ -793,7 +793,8 @@ const WEEKS=[
 // Prize money (skins, GB, Low Gross, Low Net) only runs for weeks 1-7
 const PRIZE_WEEKS=WEEKS.filter(w=>w.num<=7);
 // Display label for a week — shows playoff label when set
-function wkLabel(w){return w.label?`${w.label} (${w.date})`:(`${wkLabel(w)}`)}
+function wkLabel(w){return w.label?`${w.label} (${w.date})`:`Week ${w.num} (${w.date})`}
+function wkLabelVs(w){return `${wkLabel(w)} vs ${w.opp}`}
 function wkLabelVs(w){return `${wkLabel(w)} vs ${w.opp}`}
 const SC={
   front:[{h:1,p:5,hcp:11,y:513},{h:2,p:4,hcp:1,y:444},{h:3,p:4,hcp:5,y:404},
