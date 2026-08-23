@@ -228,6 +228,34 @@ tbody tr:hover td{background:var(--surface2)}
 .sdet strong{display:block;font-size:13px;font-weight:600;color:var(--txt)}
 .sdet span{font-size:11px;color:var(--txt3)}
 
+/* ── STATS PAGE ── */
+.sp-profile{display:flex;align-items:center;gap:16px;margin-bottom:8px}
+.sp-avatar{width:72px;height:72px;border-radius:50%;background:var(--g-grad);display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:28px;color:#fff;flex-shrink:0;border:3px solid var(--g2)}
+.sp-name{font-family:'Bebas Neue',sans-serif;font-size:28px;color:var(--g1);letter-spacing:1.5px;line-height:1}
+.sp-meta{font-size:12px;color:var(--txt3);margin-top:4px;line-height:1.6}
+.sp-wins{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.sp-win-badge{background:rgba(45,122,79,0.12);border:1px solid rgba(45,122,79,0.25);border-radius:20px;padding:3px 10px;font-size:11px;font-weight:600;color:var(--g2)}
+.sp-win-badge.gold{background:rgba(212,175,55,0.12);border-color:rgba(212,175,55,0.3);color:var(--gold)}
+.sp-narrative{background:var(--surface2);border-left:3px solid var(--g2);border-radius:0 8px 8px 0;padding:12px 14px;font-size:13px;color:var(--txt2);line-height:1.7;margin-bottom:4px;font-style:italic}
+.sp-stat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;margin-bottom:4px}
+.sp-stat-box{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px 12px;text-align:center}
+.sp-stat-val{font-family:'Bebas Neue',sans-serif;font-size:26px;color:var(--g1);line-height:1}
+.sp-stat-val.accent{color:var(--g2)}
+.sp-stat-lbl{font-size:10px;color:var(--txt3);text-transform:uppercase;letter-spacing:.5px;margin-top:2px}
+.sp-stat-sub{font-size:10px;color:var(--txt4);margin-top:1px}
+.sp-section-title{font-family:'Bebas Neue',sans-serif;font-size:15px;color:var(--g1);letter-spacing:1px;margin-bottom:10px;margin-top:2px}
+.sp-chart-wrap{position:relative;height:180px;margin-bottom:4px}
+.sp-chart-wrap canvas{max-width:100%}
+.sp-radar-wrap{position:relative;height:220px;display:flex;justify-content:center}
+.sp-pairing-row{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border)}
+.sp-pairing-row:last-child{border-bottom:none}
+.sp-par-bar-row{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.sp-par-label{width:48px;font-size:11px;color:var(--txt3);font-weight:600;flex-shrink:0}
+.sp-par-bar-bg{flex:1;height:8px;background:var(--surface2);border-radius:4px;overflow:hidden}
+.sp-par-bar-fill{height:8px;border-radius:4px;transition:width .5s ease}
+.sp-half-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media(max-width:500px){.sp-half-grid{grid-template-columns:1fr}}
+
 /* ── PAIRINGS ── */
 .pr-week{margin-bottom:24px;scroll-margin-top:60px}
 .pr-week-hdr{display:flex;align-items:center;gap:10px;margin-bottom:10px;padding-bottom:8px;border-bottom:2px solid var(--g1)}
@@ -340,6 +368,7 @@ tbody tr:hover td{background:var(--surface2)}
     <button class="nb" onclick="navTo('standings',this)">Standings</button>
     <button class="nb" onclick="navTo('schedule',this)">Results</button>
     <button class="nb" onclick="navTo('pairings',this)">Pairings</button>
+    <button class="nb" onclick="navTo('stats',this)">Stats</button>
     <button class="nb" id="nav-admin-btn" onclick="navTo('admin',this)" style="display:none">Admin</button>
   </div>
   <!-- Mobile: Enter Scores CTA + hamburger -->
@@ -360,6 +389,7 @@ tbody tr:hover td{background:var(--surface2)}
   <button class="nb" onclick="navTo('standings',null);closeDrawer()">Standings</button>
   <button class="nb" onclick="navTo('schedule',null);closeDrawer()">Results</button>
   <button class="nb" onclick="navTo('pairings',null);closeDrawer()">Pairings</button>
+  <button class="nb" onclick="navTo('stats',null);closeDrawer()">Stats</button>
   <button class="nb" id="drawer-admin-btn" onclick="navTo('admin',null);closeDrawer()" style="display:none">Admin</button>
 </div>
 
@@ -621,6 +651,18 @@ tbody tr:hover td{background:var(--surface2)}
   <div id="week-detail"></div>
 </div>
 
+<!-- ══ STATS ══ -->
+<div id="page-stats" class="page">
+  <!-- Player selector -->
+  <div class="card" style="margin-bottom:12px">
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:16px;color:var(--g1);letter-spacing:1px;white-space:nowrap">Player Stats</div>
+      <select id="stats-player-sel" onchange="renderStatsPage()" style="flex:1;min-width:160px;background:var(--surface2);border:1px solid var(--border);color:var(--txt);padding:8px 10px;border-radius:8px;font-family:'Inter',sans-serif;font-size:13px"></select>
+    </div>
+  </div>
+  <div id="stats-page-content"></div>
+</div>
+
 <!-- ══ PAIRINGS ══ -->
 <div id="page-pairings" class="page">
   <div class="card">
@@ -838,8 +880,8 @@ tbody tr:hover td{background:var(--surface2)}
 </div>
 
 <!-- ══════════════════════════════════════ SCRIPT ══════════════════════════════════════ -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script>
-// ═══ CONSTANTS ═══
 const WEEKS=[
   {num:1,date:'5/26',opp:'Forekidz',cap:'Roach'},
   {num:2,date:'6/2',opp:'The Carps',cap:'Traeger'},
@@ -1272,6 +1314,7 @@ function refreshPage(id){
   if(id==='standings')renderStandings();
   if(id==='schedule')renderSchedule();
   if(id==='pairings')renderPairings();
+  if(id==='stats')initStatsPage();
   if(id==='admin')renderAdmin();
 }
 function refreshAll(){const a=document.querySelector('.page.active');if(a)refreshPage(a.id.replace('page-',''))}
@@ -2681,6 +2724,282 @@ function renderStPrize(){
       </div>
     </div>
   </div>`;
+}
+
+// ═══ STATS PAGE ═══
+function initStatsPage(){
+  const sel=document.getElementById('stats-player-sel');
+  if(!sel)return;
+  const sorted=[...S.players].sort((a,b)=>a.first.localeCompare(b.first));
+  sel.innerHTML=sorted.map(p=>`<option value="${p.id}">${p.first} ${p.last}</option>`).join('');
+  if(currentPlayer)sel.value=currentPlayer.id;
+  renderStatsPage();
+}
+
+function renderStatsPage(){
+  const sel=document.getElementById('stats-player-sel');
+  const pid=sel?.value;
+  const player=S.players.find(p=>p.id===pid);
+  const content=document.getElementById('stats-page-content');
+  if(!player||!content)return;
+
+  const allStats=calcAllStats();
+  const ps=allStats[pid]||{};
+  const pScores=S.scores.filter(s=>s.playerId===pid);
+  const prizeWeekNums=new Set(PRIZE_WEEKS.map(w=>w.num));
+
+  const weeklyData=WEEKS.map(w=>{
+    const sc=pScores.find(s=>s.week===w.num);
+    if(!sc)return null;
+    return{week:w,sc,gross:rndGross(sc),net:rndNet(sc),sf:rndSF(sc)};
+  }).filter(Boolean);
+
+  const played=weeklyData.length;
+  const avgGross=played?weeklyData.reduce((s,d)=>s+d.gross,0)/played:0;
+  const avgNet=played?weeklyData.reduce((s,d)=>s+d.net,0)/played:0;
+  const avgSF=played?weeklyData.reduce((s,d)=>s+d.sf,0)/played:0;
+
+  const frontScores=pScores.filter(s=>s.nine==='front');
+  const backScores=pScores.filter(s=>s.nine==='back');
+  const avgFrontGross=frontScores.length?frontScores.reduce((s,sc)=>s+rndGross(sc),0)/frontScores.length:null;
+  const avgBackGross=backScores.length?backScores.reduce((s,sc)=>s+rndGross(sc),0)/backScores.length:null;
+  const avgFrontSF=frontScores.length?frontScores.reduce((s,sc)=>s+rndSF(sc),0)/frontScores.length:null;
+  const avgBackSF=backScores.length?backScores.reduce((s,sc)=>s+rndSF(sc),0)/backScores.length:null;
+
+  const parTotals={3:{sum:0,count:0},4:{sum:0,count:0},5:{sum:0,count:0}};
+  pScores.forEach(sc=>{
+    getHoles(sc.nine).forEach(hd=>{
+      const h=sc.holes.find(x=>x.hole===hd.h);
+      if(!h||!h.gross)return;
+      if(parTotals[hd.p])parTotals[hd.p].sum+=h.gross,parTotals[hd.p].count++;
+    });
+  });
+  const par3Avg=parTotals[3].count?parTotals[3].sum/parTotals[3].count:null;
+  const par4Avg=parTotals[4].count?parTotals[4].sum/parTotals[4].count:null;
+  const par5Avg=parTotals[5].count?parTotals[5].sum/parTotals[5].count:null;
+
+  const weeksContrib=PRIZE_WEEKS.filter(w=>{
+    const sc=pScores.find(s=>s.week===w.num);if(!sc)return false;
+    return top4(wkS(w.num).map(s=>({playerId:s.playerId,sf:rndSF(s)}))).some(x=>x.playerId===pid&&x.contributed>0);
+  }).length;
+  const weeksPlayedPrize=pScores.filter(s=>prizeWeekNums.has(s.week)).length;
+
+  const pairingHistory=PAIRINGS_DATA.map(pd=>{
+    const group=pd.groups.find(g=>g.some(n=>{const p2=findPlayerByFirst(n);return p2?.id===pid;}));
+    if(!group)return null;
+    const partners=group.filter(n=>{const p2=findPlayerByFirst(n);return p2&&p2.id!==pid;});
+    const mySc=wkS(pd.weekNum).find(s=>s.playerId===pid);
+    return{weekNum:pd.weekNum,week:WEEKS.find(w=>w.num===pd.weekNum),partners,mySF:mySc?rndSF(mySc):null,
+      partnerData:partners.map(n=>{const p2=findPlayerByFirst(n);if(!p2)return{name:n,sf:null};
+        const sc=wkS(pd.weekNum).find(s=>s.playerId===p2.id);return{name:n,sf:sc?rndSF(sc):null};})};
+  }).filter(Boolean);
+
+  const allSkins=WEEKS.flatMap(w=>skinsByWeek(w.num).filter(s=>s.playerId===pid).map(s=>({...s,week:w})));
+  const keyWins=[];
+  if(allSkins.length)keyWins.push({label:`${allSkins.length} Skin${allSkins.length>1?'s':''}`,gold:false});
+  if(ps.lgWins>0)keyWins.push({label:`${ps.lgWins} Low Gross Win${ps.lgWins>1?'s':''}`,gold:false});
+  if(ps.lnWins>0)keyWins.push({label:`${ps.lnWins} Low Net Win${ps.lnWins>1?'s':''}`,gold:false});
+  if(ps.gbWin>0)keyWins.push({label:`Gang Bang: $${ps.gbWin.toFixed(0)}`,gold:false});
+  if(ps.bymWins>0)keyWins.push({label:`Beat Your Meat ×${ps.bymWins}`,gold:false});
+  if(ps.sfWin>0)keyWins.push({label:`SF Payout: $${ps.sfWin.toFixed(0)}`,gold:true});
+  if(ps.ringerWin>0)keyWins.push({label:`Ringer: $${ps.ringerWin.toFixed(0)}`,gold:true});
+
+  const narrative=generateNarrative(player,ps,weeklyData,{played,weeksContrib,weeksPlayedPrize,avgGross,avgNet,avgSF,par3Avg,par4Avg,par5Avg,avgFrontSF,avgBackSF,keyWins,allSkins});
+  const initials=(player.first[0]+(player.last[0]||'')).toUpperCase();
+  const totalPrize=ps.totalPrize||0;
+
+  content.innerHTML=`
+  <div class="card" style="margin-bottom:10px">
+    <div class="sp-profile">
+      <div class="sp-avatar">${initials}</div>
+      <div style="flex:1">
+        <div class="sp-name">${player.first} ${player.last}</div>
+        <div class="sp-meta">HCP ${player.handicap||0} &nbsp;·&nbsp; Str F${player.strokesF||0}/B${player.strokesB||0}${player.hometown?' &nbsp;·&nbsp; 📍 '+player.hometown:''}${player.club?'<br>🏌 '+player.club:''}</div>
+      </div>
+    </div>
+    ${keyWins.length?`<div class="sp-wins">${keyWins.map(w=>`<span class="sp-win-badge ${w.gold?'gold':''}">${w.label}</span>`).join('')}</div>`:''}
+  </div>
+
+  <div class="card" style="margin-bottom:10px">
+    <div class="sp-section-title">Season Story</div>
+    <div class="sp-narrative">${narrative}</div>
+  </div>
+
+  <div class="card" style="margin-bottom:10px">
+    <div class="sp-section-title">Season Numbers</div>
+    <div class="sp-stat-grid">
+      <div class="sp-stat-box"><div class="sp-stat-val">${played}</div><div class="sp-stat-lbl">Weeks Played</div></div>
+      <div class="sp-stat-box"><div class="sp-stat-val accent">${weeksContrib}</div><div class="sp-stat-lbl">Wks Contributed</div><div class="sp-stat-sub">of ${weeksPlayedPrize} prize wks</div></div>
+      <div class="sp-stat-box"><div class="sp-stat-val">${avgGross.toFixed(1)}</div><div class="sp-stat-lbl">Avg Gross</div></div>
+      <div class="sp-stat-box"><div class="sp-stat-val">${avgNet.toFixed(1)}</div><div class="sp-stat-lbl">Avg Net</div></div>
+      <div class="sp-stat-box"><div class="sp-stat-val accent">${avgSF.toFixed(1)}</div><div class="sp-stat-lbl">Avg SF Pts</div></div>
+      <div class="sp-stat-box"><div class="sp-stat-val">${ps.total||0}</div><div class="sp-stat-lbl">Total SF Pts</div></div>
+      <div class="sp-stat-box"><div class="sp-stat-val accent">${(ps.contribRegular||0).toFixed(1)}</div><div class="sp-stat-lbl">Reg Contrib</div><div class="sp-stat-sub">Wks 1–7</div></div>
+      <div class="sp-stat-box"><div class="sp-stat-val">${(ps.contribPlayoff||0).toFixed(1)}</div><div class="sp-stat-lbl">Playoff Contrib</div></div>
+      ${totalPrize>0?`<div class="sp-stat-box" style="border-color:var(--gold)"><div class="sp-stat-val" style="color:var(--gold)">$${totalPrize.toFixed(0)}</div><div class="sp-stat-lbl">Prize Won</div></div>`:''}
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:10px">
+    <div class="sp-section-title">Weekly Scores — Gross / Net / SF Pts</div>
+    <div class="sp-chart-wrap"><canvas id="sp-weekly-chart"></canvas></div>
+  </div>
+
+  <div class="sp-half-grid" style="margin-bottom:10px">
+    <div class="card"><div class="sp-section-title">Avg Score by Par</div>${buildParBars(par3Avg,par4Avg,par5Avg)}</div>
+    <div class="card"><div class="sp-section-title">Front vs Back Nine</div>${buildHalfBars(avgFrontSF,avgBackSF,avgFrontGross,avgBackGross)}</div>
+  </div>
+
+  <div class="card" style="margin-bottom:10px">
+    <div class="sp-section-title">Performance Radar</div>
+    <div class="sp-radar-wrap"><canvas id="sp-radar-chart"></canvas></div>
+  </div>
+
+  <div class="card" style="margin-bottom:10px">
+    <div class="sp-section-title">Pairings History</div>
+    ${buildPairingHistory(pairingHistory)}
+  </div>`;
+
+  requestAnimationFrame(()=>{
+    renderWeeklyChart(weeklyData);
+    renderRadarChart(ps,weeklyData,{avgSF,weeksContrib,weeksPlayedPrize,avgFrontSF,avgBackSF});
+  });
+}
+
+function generateNarrative(player,ps,weeklyData,stats){
+  const{played,weeksContrib,weeksPlayedPrize,avgGross,avgNet,avgSF,par3Avg,par4Avg,avgFrontSF,avgBackSF,keyWins,allSkins}=stats;
+  const first=player.first;
+  const bestWeek=weeklyData.reduce((b,d)=>(!b||d.sf>b.sf)?d:b,null);
+  const worstWeek=weeklyData.reduce((b,d)=>(!b||d.sf<b.sf)?d:b,null);
+  const contribRate=weeksPlayedPrize>0?Math.round((weeksContrib/weeksPlayedPrize)*100):0;
+  let opening,contribLine='',swingLine='',courseLine='',parLine='',prizeLine='';
+  if(avgSF>=18)opening=`${first} has been one of the most consistent contributors to the team this season, bringing elite Stableford numbers week in and week out.`;
+  else if(avgSF>=16)opening=`${first} has had a solid season, delivering steady Stableford points and making his presence felt most weeks.`;
+  else if(avgSF>=14)opening=`${first} has shown flashes of brilliance this season, with some strong weeks mixed in with tougher outings.`;
+  else opening=`${first} has battled through a challenging season, but has shown the grit that makes Tuesday nights competitive.`;
+  if(weeksPlayedPrize>0){
+    if(contribRate>=80)contribLine=`He contributed to the team score in ${weeksContrib} of ${weeksPlayedPrize} prize weeks — a remarkable ${contribRate}% rate any captain would love.`;
+    else if(contribRate>=60)contribLine=`He found his way into the team score ${weeksContrib} out of ${weeksPlayedPrize} prize weeks (${contribRate}%).`;
+    else contribLine=`Contributing in ${weeksContrib} of ${weeksPlayedPrize} prize weeks (${contribRate}%), ${first} is still searching for consistent top-4 form.`;
+  }
+  if(bestWeek&&worstWeek&&bestWeek.sf-worstWeek.sf>=8)
+    swingLine=`The range in ${first}'s game was on full display — from a ${bestWeek.sf}-point masterclass in Week ${bestWeek.week.num} down to a tough ${worstWeek.sf}-pointer in Week ${worstWeek.week.num}.`;
+  else if(bestWeek)
+    swingLine=`His best outing was Week ${bestWeek.week.num} with ${bestWeek.sf} Stableford points${bestWeek.sf>=18?' — firmly in Beat Your Meat territory':''}.`;
+  if(avgFrontSF!==null&&avgBackSF!==null){
+    if(avgFrontSF>avgBackSF+1.5)courseLine=`${first} is a front-nine player, averaging ${avgFrontSF.toFixed(1)} pts on the front versus ${avgBackSF.toFixed(1)} on the back.`;
+    else if(avgBackSF>avgFrontSF+1.5)courseLine=`${first} gets stronger as the round goes on, with a back-nine average of ${avgBackSF.toFixed(1)} points outpacing his front-nine mark of ${avgFrontSF.toFixed(1)}.`;
+    else courseLine=`${first} is remarkably balanced, posting similar Stableford numbers on both nines.`;
+  }
+  if(par3Avg&&par4Avg){
+    const p3d=(par3Avg-3),p4d=(par4Avg-4);
+    if(p3d<p4d)parLine=`His par 3 play has been a strength, averaging ${par3Avg.toFixed(2)} (${p3d>=0?'+':''}${p3d.toFixed(2)} to par).`;
+    else parLine=`The par 4s have been ${first}'s bread and butter, where his consistent play has shone through.`;
+  }
+  if(keyWins.length>0)prizeLine=`On the money side, ${first} has accumulated ${keyWins.map(w=>w.label).join(', ')}.`;
+  else prizeLine=`The prize column has been quiet for ${first} this season, but there's still time to make a run.`;
+  return[opening,contribLine,swingLine,courseLine,parLine,prizeLine].filter(Boolean).join(' ');
+}
+
+function buildParBars(p3,p4,p5){
+  if(!p3&&!p4&&!p5)return`<div style="color:var(--txt4);font-size:12px;padding:8px 0">No hole-by-hole data yet — enter scores using HBH mode to populate this.</div>`;
+  const maxDiff=2.5;
+  function bar(par,avg){
+    if(!avg)return`<div class="sp-par-bar-row"><div class="sp-par-label">Par ${par}</div><div style="font-size:11px;color:var(--txt4)">No data</div></div>`;
+    const diff=avg-par;const pct=Math.min(100,Math.max(4,Math.round((Math.abs(diff)/maxDiff)*100)));
+    const col=diff<=0.3?'var(--g2)':diff<=0.8?'#3b82f6':'#ef4444';
+    return`<div class="sp-par-bar-row">
+      <div class="sp-par-label">Par ${par}</div>
+      <div class="sp-par-bar-bg"><div class="sp-par-bar-fill" style="width:${pct}%;background:${col}"></div></div>
+      <div style="font-size:11px;font-weight:600;color:${col};min-width:56px;text-align:right">${avg.toFixed(2)} <span style="font-size:9px;color:var(--txt4)">(${diff>=0?'+':''}${diff.toFixed(2)})</span></div>
+    </div>`;
+  }
+  return bar(3,p3)+bar(4,p4)+bar(5,p5);
+}
+
+function buildHalfBars(avgFSF,avgBSF,avgFG,avgBG){
+  if(avgFSF===null&&avgBSF===null)return`<div style="color:var(--txt4);font-size:12px;padding:8px 0">No data yet.</div>`;
+  function halfRow(label,sf,gross){
+    const col=sf>=18?'#22c55e':sf>=15?'#3b82f6':'#ef4444';
+    const barPct=sf?Math.min(100,Math.round((sf/22)*100)):0;
+    return`<div style="margin-bottom:14px">
+      <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+        <span style="font-size:12px;font-weight:600">${label} Nine</span>
+        <span style="font-family:'Bebas Neue',sans-serif;font-size:20px;color:${col}">${sf!==null?sf.toFixed(1):'–'}<span style="font-size:10px;font-family:Inter;color:var(--txt3);margin-left:3px">pts avg</span></span>
+      </div>
+      <div class="sp-par-bar-bg"><div class="sp-par-bar-fill" style="width:${barPct}%;background:${col}"></div></div>
+      ${gross?`<div style="font-size:10px;color:var(--txt3);margin-top:3px">Avg Gross: ${gross.toFixed(1)}</div>`:''}
+    </div>`;
+  }
+  return halfRow('Front',avgFSF,avgFG)+halfRow('Back',avgBSF,avgBG);
+}
+
+function buildPairingHistory(history){
+  if(!history.length)return`<div style="color:var(--txt4);font-size:12px">No pairing data found.</div>`;
+  return`<div>${history.map(h=>{
+    const partnerStr=h.partners.join(' & ')||'Solo';
+    const partnerSF=h.partnerData.map(pd=>{
+      const col=pd.sf>=18?'#22c55e':pd.sf>=15?'#3b82f6':pd.sf!==null?'#ef4444':'var(--txt4)';
+      return`<span style="color:${col};font-weight:600">${pd.name}: ${pd.sf!==null?pd.sf:'–'}</span>`;
+    }).join(' · ');
+    const mySFCol=h.mySF>=18?'#22c55e':h.mySF>=15?'#3b82f6':h.mySF!==null?'#ef4444':'var(--txt4)';
+    return`<div class="sp-pairing-row">
+      <div style="width:52px;flex-shrink:0;font-size:11px;font-weight:600;color:var(--txt3)">${h.week?.label?'P'+(h.weekNum-7):'Wk'+h.weekNum}<br><span style="font-weight:400;font-size:10px">${h.week?.date||''}</span></div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:12px;font-weight:600">${partnerStr}</div>
+        <div style="font-size:11px;color:var(--txt3);margin-top:1px">${partnerSF||'Partner scores not recorded'}</div>
+      </div>
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:24px;color:${mySFCol};flex-shrink:0">${h.mySF!==null?h.mySF:'–'}</div>
+    </div>`;
+  }).join('')}</div><div class="cap mt8">Green = 18+ pts · Blue = 15–17 · Red = &lt;15</div>`;
+}
+
+function renderWeeklyChart(weeklyData){
+  const canvas=document.getElementById('sp-weekly-chart');
+  if(!canvas||!weeklyData.length)return;
+  if(canvas._chart)canvas._chart.destroy();
+  const labels=weeklyData.map(d=>d.week.label?'P'+(d.week.num-7):'Wk'+d.week.num);
+  const ctx=canvas.getContext('2d');
+  canvas._chart=new Chart(ctx,{type:'line',data:{labels,datasets:[
+    {label:'Gross',data:weeklyData.map(d=>d.gross),borderColor:'rgba(255,255,255,0.35)',backgroundColor:'transparent',borderWidth:2,pointRadius:4,pointBackgroundColor:'rgba(255,255,255,0.5)',tension:.3,yAxisID:'y'},
+    {label:'Net',data:weeklyData.map(d=>d.net),borderColor:'#22c55e',backgroundColor:'rgba(34,197,94,0.08)',borderWidth:2,pointRadius:4,pointBackgroundColor:'#22c55e',tension:.3,fill:false,yAxisID:'y'},
+    {label:'SF Pts',data:weeklyData.map(d=>d.sf),borderColor:'#d4af37',backgroundColor:'rgba(212,175,55,0.08)',borderWidth:2.5,pointRadius:5,pointBackgroundColor:'#d4af37',tension:.3,fill:false,yAxisID:'y2'},
+  ]},options:{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{labels:{color:'rgba(255,255,255,0.55)',font:{size:11},boxWidth:18}}},
+    scales:{
+      x:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'rgba(255,255,255,0.45)',font:{size:10}}},
+      y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'rgba(255,255,255,0.45)',font:{size:10}},title:{display:true,text:'Score',color:'rgba(255,255,255,0.25)',font:{size:9}}},
+      y2:{position:'right',grid:{display:false},ticks:{color:'rgba(212,175,55,0.6)',font:{size:10}},title:{display:true,text:'SF Pts',color:'rgba(212,175,55,0.35)',font:{size:9}}}
+    }
+  }});
+}
+
+function renderRadarChart(ps,weeklyData,stats){
+  const canvas=document.getElementById('sp-radar-chart');
+  if(!canvas)return;
+  if(canvas._chart)canvas._chart.destroy();
+  const{avgSF,weeksContrib,weeksPlayedPrize,avgFrontSF,avgBackSF}=stats;
+  const sfScore=Math.min(100,Math.round((avgSF/22)*100));
+  const contribScore=weeksPlayedPrize>0?Math.round((weeksContrib/weeksPlayedPrize)*100):0;
+  const frontScore=avgFrontSF!==null?Math.min(100,Math.round((avgFrontSF/22)*100)):0;
+  const backScore=avgBackSF!==null?Math.min(100,Math.round((avgBackSF/22)*100)):0;
+  const consistScore=weeklyData.length>1?(()=>{
+    const mean=weeklyData.reduce((s,d)=>s+d.sf,0)/weeklyData.length;
+    const std=Math.sqrt(weeklyData.reduce((s,d)=>s+Math.pow(d.sf-mean,2),0)/weeklyData.length);
+    return Math.max(0,Math.min(100,Math.round(100-(std*8))));
+  })():50;
+  const prizeScore=Math.min(100,Math.round(((ps.totalPrize||0)/150)*100));
+  const ctx=canvas.getContext('2d');
+  canvas._chart=new Chart(ctx,{type:'radar',data:{
+    labels:['Avg SF Pts','Contribution %','Front Nine','Back Nine','Consistency','Prize $'],
+    datasets:[{label:'',data:[sfScore,contribScore,frontScore,backScore,consistScore,prizeScore],
+      backgroundColor:'rgba(45,122,79,0.2)',borderColor:'#2d7a4f',borderWidth:2,
+      pointBackgroundColor:'#d4af37',pointRadius:5,pointBorderColor:'#d4af37'}]
+  },options:{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:false},tooltip:{callbacks:{label:(ctx)=>`${ctx.label}: ${ctx.raw}`}}},
+    scales:{r:{min:0,max:100,angleLines:{color:'rgba(255,255,255,0.07)'},grid:{color:'rgba(255,255,255,0.07)'},
+      ticks:{display:false},pointLabels:{color:'rgba(255,255,255,0.6)',font:{size:11}}}}
+  }});
 }
 
 // ═══ PAIRINGS ═══
